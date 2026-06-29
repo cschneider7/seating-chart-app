@@ -9,18 +9,18 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle
 } from "@workspace/ui/components/navigation-menu"
-import { NavLink, Outlet } from "react-router"
+import { NavLink } from "react-router"
 
-export default function Navbar() {
+export function Navbar() {
   return (
     <div className="p-4">
       <NavigationMenu>
         <NavigationMenuList>
           <NavigationMenuItem>
-            <NavigationMenuLink className={navigationMenuTriggerStyle()} render={<NavLink to="/">Home</NavLink>} />
+            <NavigationMenuLink render={<NavLink to="/">Home</NavLink>} />
           </NavigationMenuItem>
           <NavigationMenuItem>
-            <NavigationMenuLink className={navigationMenuTriggerStyle()} render={<NavLink to="/students">Students</NavLink>} />
+            <NavigationMenuLink render={<NavLink to="/students">Students</NavLink>} />
           </NavigationMenuItem>
           <NavigationMenuItem>
             <NavigationMenuTrigger>Classes</NavigationMenuTrigger>
@@ -34,7 +34,6 @@ export default function Navbar() {
           </NavigationMenuItem>
         </NavigationMenuList>
       </NavigationMenu>
-      <Outlet />
     </div>
   );
 }

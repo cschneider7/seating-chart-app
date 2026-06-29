@@ -1,6 +1,5 @@
 import { Link } from "react-router";
 import { students } from "./student"
-import Navbar from "../../../components/navbar";
 
 export default function Component() {
   const studentList = students.map((s) => (
@@ -13,7 +12,6 @@ export default function Component() {
 
   return (
     <div>
-      <Navbar />
       <div className="p-4">
         <ul>{studentList}</ul>
       </div>

@@ -1,5 +1,4 @@
 import type { Route } from "./+types/student";
-import Navbar from "../../../components/navbar"
 
 export type Student = {
   studentId: string;
@@ -44,7 +43,6 @@ export default function Component({
   const { student } = loaderData;
   return (
     <div>
-      <Navbar />
       <div className="p-4">
         <h2>Name: {student.name}</h2>
         <p>Student ID: {student.studentId}</p>

@@ -1,5 +1,4 @@
 import type { Route } from "./+types/classroom";
-import Navbar from "../../../components/navbar"
 
 export type Classroom = {
   classroomId: string;
@@ -31,7 +30,6 @@ export default function Component({
   const { classroom } = loaderData;
   return (
     <div>
-      <Navbar />
       <div className="p-4">
         <h2>Period {classroom.period} - <i>{classroom.subject}</i></h2>
         <p>Classroom ID: {classroom.classroomId}</p>
