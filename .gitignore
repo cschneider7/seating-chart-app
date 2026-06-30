@@ -19,3 +19,6 @@ dist
 # debug
 npm-debug.log*
 pnpm-debug.log*
+
+#rust
+target
