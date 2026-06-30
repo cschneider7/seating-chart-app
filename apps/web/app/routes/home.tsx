@@ -48,9 +48,6 @@ export default function Home() {
         </Card>
         </div>
       </div>
-      <div className="p-4 flex">
-        
-      </div>
     </div>
   )
 }

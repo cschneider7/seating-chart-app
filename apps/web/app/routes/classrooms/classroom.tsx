@@ -6,33 +6,45 @@ export type Classroom = {
   subject: string;
 };
 
+export function meta({}: Route.MetaArgs) {
+  return [
+    { title: "Classrooms" },
+    { name: "description", content: "Seating chart app" },
+  ];
+}
+
 const classrooms: Classroom[] = [
   { classroomId: "1", period: 2, subject: "Math 2" },
   { classroomId: "2", period: 3, subject: "Math 2" },
   { classroomId: "3", period: 4, subject: "Math 3" },
 ];
 
-async function fetchClassroom(classroomId: string) {
-  const classroom = classrooms.find((s) => s.classroomId === classroomId);
+export async function clientLoader({
+  params,
+}: Route.ClientLoaderArgs) {
+  //const res = await fetch(`/api/v1/classrooms/${params.classroomId}`);
+  //const classroom = await res.json();
+  const classroom = classrooms.find((s) => s.classroomId === params.classroomId);
   if (!classroom) {
-    throw new Error(`Classroom with ID ${classroomId} not found`);
+    throw new Error(`Classroom with ID ${params.classroomId} not found`);
   }
   return classroom;
 }
 
-export async function loader({ params }: Route.LoaderArgs) {
-  return { classroom: await fetchClassroom(params.classroomId) };
+// HydrateFallback is rendered while the client loader is running
+export function HydrateFallback() {
+  return <div>Loading...</div>;
 }
 
 export default function Component({
   loaderData,
 }: Route.ComponentProps) {
-  const { classroom } = loaderData;
+  const { period, subject, classroomId } = loaderData;
   return (
     <div>
       <div className="p-4">
-        <h2>Period {classroom.period} - <i>{classroom.subject}</i></h2>
-        <p>Classroom ID: {classroom.classroomId}</p>
+        <h2>Period {period} - <i>{subject}</i></h2>
+        <p>Classroom ID: {classroomId}</p>
       </div>
     </div>
   );

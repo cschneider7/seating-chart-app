@@ -11,14 +11,16 @@ import { Spinner } from "@workspace/ui/components/spinner"
 
 import type { Route } from "./+types/root"
 import "@workspace/ui/globals.css"
-import { Navbar } from "../components/navbar"
+import { Navbar } from "@components/navbar"
+import { ThemeProvider } from "@components/theme-provider"
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation();
   const isNavigating = Boolean(navigation.location);
+  const theme = "light";
   
   return (
-    <html lang="en">
+    <html lang="en" className={theme}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -26,11 +28,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <Navbar />
-        {isNavigating && <div className="flex items-center gap-4"><Spinner /></div>}
-        {children}
-        <ScrollRestoration />
-        <Scripts />
+        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+          <Navbar />
+          {isNavigating && <div className="flex items-center p-4 gap-4"><Spinner /></div>}
+          {children}
+          <ScrollRestoration />
+          <Scripts />
+        </ThemeProvider>
       </body>
     </html>
   )

@@ -10,6 +10,7 @@ import {
   navigationMenuTriggerStyle
 } from "@workspace/ui/components/navigation-menu"
 import { NavLink } from "react-router"
+import { ThemeToggle } from "@components/theme-toggle"
 
 export function Navbar() {
   return (
@@ -31,6 +32,9 @@ export function Navbar() {
                 <NavigationMenuLink render={<NavLink to="/classrooms/3">Period 4</NavLink>} />
               </ul>
             </NavigationMenuContent>
+          </NavigationMenuItem>
+          <NavigationMenuItem>
+            <ThemeToggle />
           </NavigationMenuItem>
         </NavigationMenuList>
       </NavigationMenu>
