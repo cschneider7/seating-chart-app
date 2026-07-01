@@ -8,9 +8,9 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
   navigationMenuTriggerStyle
-} from "@workspace/ui/components/navigation-menu"
+} from "~/components/ui/navigation-menu"
 import { NavLink } from "react-router"
-import { ThemeToggle } from "@components/theme-toggle"
+import { ThemeToggle } from "~/components/ui/theme-toggle"
 
 export function Navbar() {
   return (

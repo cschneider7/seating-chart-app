@@ -7,12 +7,12 @@ import {
   isRouteErrorResponse,
   useNavigation
 } from "react-router"
-import { Spinner } from "@workspace/ui/components/spinner"
+import { Spinner } from "~/components/ui/spinner"
 
 import type { Route } from "./+types/root"
-import "@workspace/ui/globals.css"
-import { Navbar } from "@components/navbar"
-import { ThemeProvider } from "@components/theme-provider"
+import "./app.css"
+import { Navbar } from "~/components/ui/navbar"
+import { ThemeProvider } from "~/components/ui/theme-provider"
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation();

@@ -1,4 +1,4 @@
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "~/components/ui/button"
 import {
   Card,
   CardContent,
@@ -6,7 +6,7 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@workspace/ui/components/card"
+} from "~/components/ui/card"
 import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {

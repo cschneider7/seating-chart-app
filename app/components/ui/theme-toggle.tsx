@@ -1,14 +1,14 @@
 import { Moon, Sun } from "lucide-react"
 import { useFetcher, useRouteLoaderData } from "react-router"
 
-import { Button } from "@workspace/ui/components/button"
+import { Button } from "~/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
-import { useTheme, type Theme } from "@components/theme-provider"
+} from "~/components/ui/dropdown-menu"
+import { useTheme, type Theme } from "~/components/ui/theme-provider"
 
 export function ThemeToggle() {
   const { setTheme } = useTheme();
