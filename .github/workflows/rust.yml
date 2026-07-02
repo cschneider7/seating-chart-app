@@ -1,5 +1,4 @@
 name: Rust CI
-
 on: 
   push:
   pull_request:
@@ -11,6 +10,15 @@ jobs:
   test:
     name: Run Test Suite
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: admin
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: seating_chart_db
+        ports:
+          - 5432:5432
     steps:
       - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
