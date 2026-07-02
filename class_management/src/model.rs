@@ -21,6 +21,7 @@ pub struct StudentModel {
     pub created_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct TableModel {
     pub id: i64,
@@ -29,6 +30,7 @@ pub struct TableModel {
     pub created_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct SeatModel {
     pub id: i64,

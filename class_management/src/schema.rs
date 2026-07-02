@@ -28,17 +28,20 @@ pub struct UpdateStudentSchema {
     pub seat_id: Option<i64>,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TableSchema {
     pub classroom_id: i64,
     pub max_seats: i16,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateTableSchema {
     pub max_seats: i16,
 }
 
+#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SeatSchema {
     pub table_id: i64,
