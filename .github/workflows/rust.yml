@@ -19,7 +19,6 @@ jobs:
 
   formatting:
     name: Check Formatting
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
