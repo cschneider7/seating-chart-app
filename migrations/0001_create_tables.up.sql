@@ -1,0 +1,35 @@
+-- Classrooms
+CREATE TABLE IF NOT EXISTS classrooms (
+    id BIGINT PRIMARY KEY NOT NULL GENERATED ALWAYS AS IDENTITY,
+    uuid UUID NOT NULL DEFAULT gen_random_uuid(),
+    subject TEXT NOT NULL,
+    period SMALLINT NOT NULL,
+    created_time TIMESTAMPTZ NULL DEFAULT now()
+);
+
+-- Students
+CREATE TABLE IF NOT EXISTS students (
+    id BIGINT PRIMARY KEY NOT NULL GENERATED ALWAYS AS IDENTITY,
+    uuid UUID NOT NULL DEFAULT gen_random_uuid(),
+    student_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    classroom_id BIGINT NULL,
+    seat_id BIGINT NULL,
+    created_time TIMESTAMPTZ NULL DEFAULT now()
+);
+
+-- Tables
+CREATE TABLE IF NOT EXISTS tables (
+    id BIGINT PRIMARY KEY NOT NULL GENERATED ALWAYS AS IDENTITY,
+    classroom_id BIGINT NOT NULL,
+    max_seats SMALLINT NOT NULL,
+    created_time TIMESTAMPTZ NULL DEFAULT now()
+);
+
+-- Seats
+CREATE TABLE IF NOT EXISTS seats (
+    id BIGINT PRIMARY KEY NOT NULL GENERATED ALWAYS AS IDENTITY,
+    table_id BIGINT NOT NULL,
+    position SMALLINT NOT NULL,
+    created_time TIMESTAMPTZ NULL DEFAULT now()
+);
