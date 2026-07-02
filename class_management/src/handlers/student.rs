@@ -4,7 +4,7 @@ use axum::{
     Json,
     extract::{Path, State},
     http::StatusCode,
-    response::IntoResponse
+    response::IntoResponse,
 };
 use serde_json::json;
 use uuid::Uuid;
@@ -12,25 +12,22 @@ use uuid::Uuid;
 use crate::{
     AppState,
     model::StudentModel,
-    schema::{StudentSchema, UpdateStudentSchema}
+    schema::{StudentSchema, UpdateStudentSchema},
 };
 
 pub async fn student_list_handler(
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let students = sqlx::query_as!(
-        StudentModel,
-        r#"SELECT * FROM students ORDER by name"#
-    )
-    .fetch_all(&data.db)
-    .await
-    .map_err(|e| {
-        let error_response = json!({
-            "status": "error",
-            "message": format!("Database error: {}", e),
-        });
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
-    })?;
+    let students = sqlx::query_as!(StudentModel, r#"SELECT * FROM students ORDER by name"#)
+        .fetch_all(&data.db)
+        .await
+        .map_err(|e| {
+            let error_response = json!({
+                "status": "error",
+                "message": format!("Database error: {}", e),
+            });
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        })?;
 
     let response = json!({
         "status": "ok",
@@ -70,13 +67,13 @@ pub async fn get_student_handler(
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"status": "error", "message": format!("{:?}", e)})),
-        ))
+        )),
     }
 }
 
 pub async fn create_student_handler(
     State(data): State<Arc<AppState>>,
-    Json(body): Json<StudentSchema>
+    Json(body): Json<StudentSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let student = sqlx::query_as!(
         StudentModel,
@@ -111,7 +108,7 @@ pub async fn create_student_handler(
             Json(json!({"status": "error", "message": format!("{:?}", err)})),
         ));
     }
-    
+
     let response = json!({
         "status": "success",
         "data": json!({"student": student}),
@@ -156,11 +153,11 @@ pub async fn update_student_handler(
     let new_name = body.name.as_ref().unwrap_or(&student.name);
     let new_classroom_id = match body.classroom_id {
         Some(classroom_id) => Some(classroom_id),
-        _ => student.classroom_id
+        _ => student.classroom_id,
     };
     let new_seat_id = match body.seat_id {
         Some(seat_id) => Some(seat_id),
-        _ => student.seat_id
+        _ => student.seat_id,
     };
 
     let updated_student = sqlx::query_as!(
@@ -214,15 +211,15 @@ pub async fn delete_student_handler(
             Json(json!({
                 "status": "error",
                 "message": "Student not found"
-            }))
+            })),
         ),
         _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
                 "status": "error",
                 "message": format!("{:?}", e)
-            }))
-        )
+            })),
+        ),
     })?;
 
     let response = json!({
