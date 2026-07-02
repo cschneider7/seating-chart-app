@@ -4,7 +4,7 @@ use axum::{
     Json,
     extract::{Path, State},
     http::StatusCode,
-    response::IntoResponse
+    response::IntoResponse,
 };
 use serde_json::json;
 use uuid::Uuid;
@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::{
     AppState,
     model::ClassroomModel,
-    schema::{ClassroomSchema, UpdateClassroomSchema}
+    schema::{ClassroomSchema, UpdateClassroomSchema},
 };
 
 pub async fn classroom_list_handler(
@@ -70,13 +70,13 @@ pub async fn get_classroom_handler(
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({"status": "error", "message": format!("{:?}", e)})),
-        ))
+        )),
     }
 }
 
 pub async fn create_classroom_handler(
     State(data): State<Arc<AppState>>,
-    Json(body): Json<ClassroomSchema>
+    Json(body): Json<ClassroomSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let classroom = sqlx::query_as!(
         ClassroomModel,
@@ -107,7 +107,7 @@ pub async fn create_classroom_handler(
             Json(json!({"status": "error", "message": format!("{:?}", err)})),
         ));
     }
-    
+
     let response = json!({
         "status": "success",
         "data": json!({"classroom": classroom}),
@@ -198,15 +198,15 @@ pub async fn delete_classroom_handler(
             Json(json!({
                 "status": "error",
                 "message": "Classroom not found"
-            }))
+            })),
         ),
         _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
                 "status": "error",
                 "message": format!("{:?}", e)
-            }))
-        )
+            })),
+        ),
     })?;
 
     let response = json!({
