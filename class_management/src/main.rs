@@ -3,11 +3,11 @@ use std::sync::Arc;
 use dotenv::dotenv;
 use sqlx::postgres::{PgPool, PgPoolOptions};
 
-use crate::route::create_router;
+use crate::routes::create_router;
 
-mod handler;
+mod handlers;
 mod model;
-mod route;
+mod routes;
 mod schema;
 
 const MAX_CONNECTIONS: u32 = 10;
