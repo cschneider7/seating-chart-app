@@ -6,38 +6,21 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  DATABASE_URL: postgres://postgres:password@localhost:5432/postgres
+  SQLX_OFFLINE: true
 
 jobs:
   test:
     name: Run Test Suite
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: postgres
-        ports:
-          - 5432:5432
     steps:
       - uses: actions/checkout@v6
-      - name: Install SQLx CLI
-        run: cargo install sqlx-cli --no-default-features --features rustls,postgres
-      - name: Run DB Migrations
-        run: sqlx migrate run
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo test --all-features
-      - name: Generate SQL Query Metadata
-        run: cargo sqlx prepare --workspace
 
   formatting:
     name: Check Formatting
     needs: test
     runs-on: ubuntu-latest
-    env:
-      SQLX_OFFLINE: true
     steps:
       - uses: actions/checkout@v6
       - uses: actions-rust-lang/setup-rust-toolchain@v1
