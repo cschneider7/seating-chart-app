@@ -1,6 +1,7 @@
 name: Rust CI
 on: 
   push:
+    branches: ["main"]
   pull_request:
 
 env:
@@ -22,6 +23,10 @@ jobs:
           - 5432:5432
     steps:
       - uses: actions/checkout@v6
+      - name: Install SQLx CLI
+        run: cargo install sqlx-cli --no-default-features --features rustls,postgres
+      - name: Run DB Migrations
+        run: sqlx migrate run
       - uses: actions-rust-lang/setup-rust-toolchain@v1
       - run: cargo test --all-features
 
