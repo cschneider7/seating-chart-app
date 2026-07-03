@@ -14,6 +14,15 @@ import "./app.css"
 import { Navbar } from "~/components/ui/navbar"
 import { ThemeProvider } from "~/components/ui/theme-provider"
 
+export function HydrateFallback() {
+  return (
+    <div id="loading-splash">
+      <Spinner className="size-8" />
+      <p>Loading, please wait...</p>
+    </div>
+  );
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation();
   const isNavigating = Boolean(navigation.location);
@@ -29,9 +38,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </head>
       <body>
         <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-          <Navbar />
-          {isNavigating && <div className="flex items-center p-4 gap-4"><Spinner /></div>}
-          {children}
+          <div className="p-4">
+            <Navbar />
+            {children}
+          </div>
           <ScrollRestoration />
           <Scripts />
         </ThemeProvider>

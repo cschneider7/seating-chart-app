@@ -23,16 +23,15 @@ pub async fn student_list_handler(
         .await
         .map_err(|e| {
             let error_response = json!({
-                "status": "error",
+                "status": "fail",
                 "message": format!("Database error: {}", e),
             });
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
         })?;
 
     let response = json!({
-        "status": "ok",
-        "count": students.len(),
-        "notes": students
+        "status": "success",
+        "data": json!(students)
     });
     Ok(Json(response))
 }
@@ -53,7 +52,7 @@ pub async fn get_student_handler(
         Ok(student) => {
             let response = json!({
                 "status": "success",
-                "data": json!({"student": student}),
+                "data": json!(student),
             });
             Ok(Json(response))
         }
@@ -66,7 +65,7 @@ pub async fn get_student_handler(
         }
         Err(e) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"status": "error", "message": format!("{:?}", e)})),
+            Json(json!({"status": "fail", "message": format!("{:?}", e)})),
         )),
     }
 }
@@ -97,7 +96,7 @@ pub async fn create_student_handler(
     if let Err(err) = student {
         if err.to_string().contains("duplicate key value") {
             let error_response = json!({
-                "status": "error",
+                "status": "fail",
                 "message": "Student already exists",
             });
             return Err((StatusCode::CONFLICT, Json(error_response)));
@@ -105,13 +104,13 @@ pub async fn create_student_handler(
 
         return Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"status": "error", "message": format!("{:?}", err)})),
+            Json(json!({"status": "fail", "message": format!("{:?}", err)})),
         ));
     }
 
     let response = json!({
         "status": "success",
-        "data": json!({"student": student}),
+        "data": json!(student),
     });
     Ok(Json(response))
 }
@@ -133,7 +132,7 @@ pub async fn update_student_handler(
         Ok(student) => student,
         Err(sqlx::Error::RowNotFound) => {
             let error_response = serde_json::json!({
-                "status": "error",
+                "status": "fail",
                 "message": format!("student with UUID: {} not found", uuid)
             });
             return Err((StatusCode::NOT_FOUND, Json(error_response)));
@@ -142,7 +141,7 @@ pub async fn update_student_handler(
             return Err((
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({
-                    "status": "error",
+                    "status": "fail",
                     "message": format!("{:?}",e)
                 })),
             ));
@@ -181,7 +180,7 @@ pub async fn update_student_handler(
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
-                "status": "error",
+                "status": "fail",
                 "message": format!("{:?}", e)
             })),
         )
@@ -189,7 +188,7 @@ pub async fn update_student_handler(
 
     let response = json!({
         "status": "success",
-        "data": json!({"student": updated_student})
+        "data": json!(updated_student)
     });
     Ok(Json(response))
 }
@@ -198,7 +197,7 @@ pub async fn delete_student_handler(
     Path(uuid): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let query_result = sqlx::query_as!(
+    let student = sqlx::query_as!(
         StudentModel,
         r#"DELETE FROM students WHERE uuid = $1 RETURNING *"#,
         &uuid
@@ -225,7 +224,7 @@ pub async fn delete_student_handler(
     let response = json!({
         "status": "success",
         "message": "Student deleted successfully",
-        "data": { "deleted_student": query_result }
+        "data": json!(student),
     });
     Ok(Json(response))
 }
