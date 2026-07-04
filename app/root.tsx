@@ -11,7 +11,7 @@ import { Spinner } from "~/components/ui/spinner"
 
 import type { Route } from "./+types/root"
 import "./app.css"
-import { Navbar } from "~/components/ui/navbar"
+import { Navbar } from "~/components/navbar"
 import { ThemeProvider } from "~/components/ui/theme-provider"
 
 export function HydrateFallback() {
@@ -37,21 +37,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-          <div className="p-4">
-            <Navbar />
-            {children}
-          </div>
-          <ScrollRestoration />
-          <Scripts />
-        </ThemeProvider>
+        {children}
+        <ScrollRestoration />
+        <Scripts />
       </body>
     </html>
   )
 }
 
 export default function App() {
-  return <Outlet />
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <div className="mx-16 my-8">
+        <Navbar />
+        <Outlet />
+      </div>
+    </ThemeProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
