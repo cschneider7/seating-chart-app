@@ -12,7 +12,9 @@ export default [
   ...prefix("students", [
     layout("layouts/students.tsx", [
       index("routes/students/home.tsx"),
-      route(":studentId", "routes/students/student.tsx")
+      route("new", "routes/students/create-student.tsx"),
+      route(":studentId", "routes/students/student.tsx"),
+      route(":studentId/delete", "routes/students/delete.tsx")
     ])
   ]),
 

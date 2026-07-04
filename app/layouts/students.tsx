@@ -1,18 +1,9 @@
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarHeader,
-  SidebarInset,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarProvider,
-  SidebarTrigger,
-} from "~/components/ui/sidebar";
+import { SidebarProvider } from "~/components/ui/sidebar";
 import type { Route } from "./+types/students";
-import { NavLink, Outlet } from "react-router";
+
 import type { Student } from "~/lib/types";
+import { StudentSidebar } from "~/components/students-sidebar"
+import { Outlet } from "react-router";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -28,33 +19,17 @@ export async function loader() {
   }
 
   const json = await res.json();
-  console.log(json);
   return json.data;
 }
 
-export default function StudentsLayout({
-  loaderData,
-}: Route.ComponentProps) {
+export default function Layout(
+  { loaderData }: Route.ComponentProps
+) {
   const students: Student[] = loaderData;
-
   return (
-    <SidebarProvider defaultOpen className="w-auto">
-      <Sidebar variant="sidebar" collapsible="none" className="sticky">
-        <SidebarHeader />
-        <SidebarContent>
-          <SidebarMenu>
-            {students.map((student) => (
-              <SidebarMenuItem key={student.student_id}>
-                <SidebarMenuButton
-                  render={<NavLink to={`/students/${student.uuid}`}>{student.name}</NavLink>}
-                />
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarContent>
-        <SidebarFooter />
-      </Sidebar>
-      <main>
+    <SidebarProvider>
+      <StudentSidebar students={students} />
+      <main className="flex-1 pl-6">
         <Outlet />
       </main>
     </SidebarProvider>
