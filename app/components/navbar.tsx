@@ -1,3 +1,5 @@
+"use client"
+
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -12,8 +14,8 @@ import { ThemeToggle } from "~/components/ui/theme-toggle"
 
 export function Navbar() {
   return (
-    <NavigationMenu>
-      <NavigationMenuList>
+    <NavigationMenu className="max-w-full w-full justify-start pb-4">
+      <NavigationMenuList className="w-full gap-1">
         <NavigationMenuItem>
           <NavigationMenuLink render={<NavLink to="/">Home</NavLink>} />
         </NavigationMenuItem>
@@ -30,7 +32,7 @@ export function Navbar() {
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
-        <NavigationMenuItem>
+        <NavigationMenuItem className="ml-auto">
           <ThemeToggle />
         </NavigationMenuItem>
       </NavigationMenuList>
