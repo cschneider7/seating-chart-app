@@ -11,8 +11,17 @@ import { Spinner } from "~/components/ui/spinner"
 
 import type { Route } from "./+types/root"
 import "./app.css"
-import { Navbar } from "~/components/ui/navbar"
+import { Navbar } from "~/components/navbar"
 import { ThemeProvider } from "~/components/ui/theme-provider"
+
+export function HydrateFallback() {
+  return (
+    <div id="loading-splash">
+      <Spinner className="size-8" />
+      <p>Loading, please wait...</p>
+    </div>
+  );
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const navigation = useNavigation();
@@ -28,20 +37,23 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-          <Navbar />
-          {isNavigating && <div className="flex items-center p-4 gap-4"><Spinner /></div>}
-          {children}
-          <ScrollRestoration />
-          <Scripts />
-        </ThemeProvider>
+        {children}
+        <ScrollRestoration />
+        <Scripts />
       </body>
     </html>
   )
 }
 
 export default function App() {
-  return <Outlet />
+  return (
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <div className="mx-16 my-8">
+        <Navbar />
+        <Outlet />
+      </div>
+    </ThemeProvider>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

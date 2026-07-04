@@ -28,24 +28,24 @@ export default function Home() {
             <Button className="mt-2">Button</Button>
           </div>
           <Card className="max-w-sm">
-          <CardHeader>
-            <CardTitle>Project Overview</CardTitle>
-            <CardDescription>
-              Track progress and recent activity for your Vite app.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            Your design system is ready. Start building your next component.
-          </CardContent>
-          <CardContent>
-            <Button className="mt-2">Button</Button>
-          </CardContent>
-          <CardFooter>
-            <div className="text-muted-foreground font-mono text-xs">
-              (Press <kbd>d</kbd> to toggle dark mode)
-            </div>
-          </CardFooter>
-        </Card>
+            <CardHeader>
+              <CardTitle>Project Overview</CardTitle>
+              <CardDescription>
+                Track progress and recent activity for your Vite app.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              Your design system is ready. Start building your next component.
+            </CardContent>
+            <CardContent>
+              <Button className="mt-2">Button</Button>
+            </CardContent>
+            <CardFooter>
+              <div className="text-muted-foreground font-mono text-xs">
+                (Press <kbd>d</kbd> to toggle dark mode)
+              </div>
+            </CardFooter>
+          </Card>
         </div>
       </div>
     </div>

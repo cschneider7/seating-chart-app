@@ -1,10 +1,5 @@
 import type { Route } from "./+types/classroom";
-
-export type Classroom = {
-  classroomId: string;
-  period: number;
-  subject: string;
-};
+import type { Classroom } from "~/lib/types";
 
 export function meta({}: Route.MetaArgs) {
   return [

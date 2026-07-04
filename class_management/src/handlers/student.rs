@@ -22,17 +22,18 @@ pub async fn student_list_handler(
         .fetch_all(&data.db)
         .await
         .map_err(|e| {
-            let error_response = json!({
-                "status": "error",
-                "message": format!("Database error: {}", e),
-            });
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "fail",
+                    "message": format!("Database error: {}", e),
+                })),
+            )
         })?;
 
     let response = json!({
-        "status": "ok",
-        "count": students.len(),
-        "notes": students
+        "status": "success",
+        "data": json!(students)
     });
     Ok(Json(response))
 }
@@ -41,34 +42,35 @@ pub async fn get_student_handler(
     Path(uuid): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let query_result = sqlx::query_as!(
+    let student = sqlx::query_as!(
         StudentModel,
         r#"SELECT * FROM students WHERE uuid = $1"#,
         &uuid
     )
     .fetch_one(&data.db)
-    .await;
-
-    match query_result {
-        Ok(student) => {
-            let response = json!({
-                "status": "success",
-                "data": json!({"student": student}),
-            });
-            Ok(Json(response))
-        }
-        Err(sqlx::Error::RowNotFound) => {
-            let error_response = json!({
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => (
+            StatusCode::NOT_FOUND,
+            Json(json!({
                 "status": "fail",
                 "message": format!("Student with UUID: {} not found", uuid)
-            });
-            Err((StatusCode::NOT_FOUND, Json(error_response)))
-        }
-        Err(e) => Err((
+            })),
+        ),
+        _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"status": "error", "message": format!("{:?}", e)})),
-        )),
-    }
+            Json(json!({
+                "status": "fail",
+                "message": format!("{:?}", e)
+            })),
+        ),
+    })?;
+
+    let response = json!({
+        "status": "success",
+        "data": json!(student),
+    });
+    Ok(Json(response))
 }
 
 pub async fn create_student_handler(
@@ -92,26 +94,19 @@ pub async fn create_student_handler(
     )
     .fetch_one(&data.db)
     .await
-    .map_err(|e| e.to_string());
-
-    if let Err(err) = student {
-        if err.to_string().contains("duplicate key value") {
-            let error_response = json!({
-                "status": "error",
-                "message": "Student already exists",
-            });
-            return Err((StatusCode::CONFLICT, Json(error_response)));
-        }
-
-        return Err((
+    .map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"status": "error", "message": format!("{:?}", err)})),
-        ));
-    }
+            Json(json!({
+                "status": "error",
+                "message": format!("{:?}", e)
+            })),
+        )
+    })?;
 
     let response = json!({
         "status": "success",
-        "data": json!({"student": student}),
+        "data": json!(student),
     });
     Ok(Json(response))
 }
@@ -121,33 +116,29 @@ pub async fn update_student_handler(
     State(data): State<Arc<AppState>>,
     Json(body): Json<UpdateStudentSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let query_result = sqlx::query_as!(
+    let student = sqlx::query_as!(
         StudentModel,
         r#"SELECT * FROM students WHERE uuid = $1"#,
         &uuid
     )
     .fetch_one(&data.db)
-    .await;
-
-    let student = match query_result {
-        Ok(student) => student,
-        Err(sqlx::Error::RowNotFound) => {
-            let error_response = serde_json::json!({
-                "status": "error",
-                "message": format!("student with UUID: {} not found", uuid)
-            });
-            return Err((StatusCode::NOT_FOUND, Json(error_response)));
-        }
-        Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "status": "error",
-                    "message": format!("{:?}",e)
-                })),
-            ));
-        }
-    };
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => (
+            StatusCode::NOT_FOUND,
+            Json(json!({
+                "status": "fail",
+                "message": format!("Student with UUID: {} not found", uuid)
+            })),
+        ),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "status": "fail",
+                "message": format!("{:?}", e)
+            })),
+        ),
+    })?;
 
     let new_student_id = body.student_id.unwrap_or(student.student_id);
     let new_name = body.name.as_ref().unwrap_or(&student.name);
@@ -181,7 +172,7 @@ pub async fn update_student_handler(
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
-                "status": "error",
+                "status": "fail",
                 "message": format!("{:?}", e)
             })),
         )
@@ -189,7 +180,7 @@ pub async fn update_student_handler(
 
     let response = json!({
         "status": "success",
-        "data": json!({"student": updated_student})
+        "data": json!(updated_student)
     });
     Ok(Json(response))
 }
@@ -198,7 +189,7 @@ pub async fn delete_student_handler(
     Path(uuid): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let query_result = sqlx::query_as!(
+    let student = sqlx::query_as!(
         StudentModel,
         r#"DELETE FROM students WHERE uuid = $1 RETURNING *"#,
         &uuid
@@ -209,14 +200,14 @@ pub async fn delete_student_handler(
         sqlx::Error::RowNotFound => (
             StatusCode::NOT_FOUND,
             Json(json!({
-                "status": "error",
-                "message": "Student not found"
+                "status": "fail",
+                "message": format!("Student with UUID: {} not found", uuid)
             })),
         ),
         _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
-                "status": "error",
+                "status": "fail",
                 "message": format!("{:?}", e)
             })),
         ),
@@ -225,7 +216,7 @@ pub async fn delete_student_handler(
     let response = json!({
         "status": "success",
         "message": "Student deleted successfully",
-        "data": { "deleted_student": query_result }
+        "data": json!(student),
     });
     Ok(Json(response))
 }
