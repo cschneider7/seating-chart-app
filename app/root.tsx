@@ -5,7 +5,7 @@ import {
   Scripts,
   ScrollRestoration,
   isRouteErrorResponse,
-  useNavigation
+  useNavigation,
 } from "react-router"
 import { Spinner } from "~/components/ui/spinner"
 
@@ -20,14 +20,14 @@ export function HydrateFallback() {
       <Spinner className="size-8" />
       <p>Loading, please wait...</p>
     </div>
-  );
+  )
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const navigation = useNavigation();
-  const isNavigating = Boolean(navigation.location);
-  const theme = "light";
-  
+  const navigation = useNavigation()
+  const isNavigating = Boolean(navigation.location)
+  const theme = "light"
+
   return (
     <html lang="en" className={theme}>
       <head>
@@ -53,7 +53,7 @@ export default function App() {
         <Outlet />
       </div>
     </ThemeProvider>
-  );
+  )
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
