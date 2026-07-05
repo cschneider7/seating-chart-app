@@ -1,5 +1,5 @@
-import { Form, redirect, useNavigate } from "react-router";
-import { Button } from "~/components/ui/button";
+import { Form, redirect, useNavigate } from "react-router"
+import { Button } from "~/components/ui/button"
 import {
   Field,
   FieldDescription,
@@ -7,20 +7,25 @@ import {
   FieldLabel,
   FieldLegend,
   FieldSeparator,
-  FieldSet
-} from "~/components/ui/field";
-import { Input } from "~/components/ui/input";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
-import { Textarea } from "~/components/ui/textarea";
-import type { Route } from "./+types/create-student";
+  FieldSet,
+} from "~/components/ui/field"
+import { Input } from "~/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select"
+import { Textarea } from "~/components/ui/textarea"
+import type { Route } from "./+types/create-student"
 
-const classrooms = [
-  { label: "Choose classroom", value: null },
-];
+const classrooms = [{ label: "Choose classroom", value: null }]
 
 export async function action({ request }: Route.ActionArgs) {
-  const formData = await request.formData();
-  const info = Object.fromEntries(formData);
+  const formData = await request.formData()
+  const info = Object.fromEntries(formData)
 
   const response = await fetch("http://localhost:3000/api/v1/students", {
     method: "POST",
@@ -33,21 +38,21 @@ export async function action({ request }: Route.ActionArgs) {
       classroom_id: info.classroomId ? Number(info.classroomId) : null,
       seat_id: null,
     }),
-  });
+  })
 
   if (!response.ok) {
-    throw new Error('Error creating student: ' + response.statusText);
+    throw new Error("Error creating student: " + response.statusText)
   }
 
-  const data = await response.json();
-  console.log(data);
+  const data = await response.json()
+  console.log(data)
 
   // Return a response (e.g., redirect to another page)
-  return redirect(`/students/${data.data.uuid}`);
+  return redirect(`/students/${data.data.uuid}`)
 }
 
 export default function Component() {
-  const navigate = useNavigate();
+  const navigate = useNavigate()
 
   return (
     <div className="w-full max-w-md">
@@ -59,23 +64,17 @@ export default function Component() {
             <FieldGroup>
               <Field>
                 <FieldLabel>Name</FieldLabel>
-                <Input
-                  name="name"
-                  placeholder="Bob Burger"
-                  required
-                />
+                <Input name="name" placeholder="Bob Burger" required />
               </Field>
               <Field>
                 <FieldLabel>ID Number</FieldLabel>
-                <Input
-                  name="studentId"
-                  placeholder="123456"
-                  required
-                />
+                <Input name="studentId" placeholder="123456" required />
               </Field>
               <Field>
                 <FieldLabel>Classroom</FieldLabel>
-                <FieldDescription>The classroom the student is enrolled in</FieldDescription>
+                <FieldDescription>
+                  The classroom the student is enrolled in
+                </FieldDescription>
                 <Select items={classrooms}>
                   <SelectTrigger name="classroomId" className="w-full max-w-48">
                     <SelectValue />
@@ -119,10 +118,16 @@ export default function Component() {
           </FieldSet> */}
           <Field orientation="horizontal">
             <Button type="submit">Submit</Button>
-            <Button variant="outline" type="button" onClick={() => navigate(-1)}>Cancel</Button>
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => navigate(-1)}
+            >
+              Cancel
+            </Button>
           </Field>
         </FieldGroup>
       </Form>
     </div>
-  );
+  )
 }

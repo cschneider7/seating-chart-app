@@ -3,5 +3,5 @@ export default function Component() {
     <div className="p-4">
       <h1>Student Home</h1>
     </div>
-  );
+  )
 }

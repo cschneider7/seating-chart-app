@@ -11,12 +11,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "~/components/ui/sidebar";
-import { Label } from "~/components/ui/label";
-import { Link, NavLink } from "react-router";
-import { Plus, Search } from "lucide-react";
+} from "~/components/ui/sidebar"
+import { Label } from "~/components/ui/label"
+import { Link, NavLink } from "react-router"
+import { Plus, Search } from "lucide-react"
 
-import type { Student } from "~/lib/types";
+import type { Student } from "~/lib/types"
 
 function SearchForm() {
   return (
@@ -26,16 +26,12 @@ function SearchForm() {
           <Label htmlFor="search" className="sr-only">
             Search
           </Label>
-          <SidebarInput
-            id="search"
-            placeholder="Search..."
-            className="pl-8"
-          />
+          <SidebarInput id="search" placeholder="Search..." className="pl-8" />
           <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 opacity-50 select-none" />
         </SidebarGroupContent>
       </SidebarGroup>
     </form>
-  );
+  )
 }
 
 export function StudentSidebar({ students }: { students: Student[] }) {
@@ -48,13 +44,21 @@ export function StudentSidebar({ students }: { students: Student[] }) {
         <SidebarGroup>
           <SidebarGroupLabel>Students</SidebarGroupLabel>
           <SidebarGroupAction
-            render={<Link to="/students/new"><Plus /> <span className="sr-only">Create new student</span></Link>}
+            render={
+              <Link to="/students/new">
+                <Plus /> <span className="sr-only">Create new student</span>
+              </Link>
+            }
           />
           <SidebarMenu>
             {students.map((student) => (
               <SidebarMenuItem key={student.student_id}>
                 <SidebarMenuButton
-                  render={<NavLink to={`/students/${student.uuid}`}>{student.name}</NavLink>}
+                  render={
+                    <NavLink to={`/students/${student.uuid}`}>
+                      {student.name}
+                    </NavLink>
+                  }
                 />
               </SidebarMenuItem>
             ))}
@@ -63,5 +67,5 @@ export function StudentSidebar({ students }: { students: Student[] }) {
       </SidebarContent>
       <SidebarFooter />
     </Sidebar>
-  );
+  )
 }

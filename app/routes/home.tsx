@@ -7,13 +7,13 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card"
-import type { Route } from "./+types/home";
+import type { Route } from "./+types/home"
 
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Seating Chart" },
     { name: "description", content: "Seating chart app" },
-  ];
+  ]
 }
 
 export default function Home() {
@@ -41,7 +41,7 @@ export default function Home() {
               <Button className="mt-2">Button</Button>
             </CardContent>
             <CardFooter>
-              <div className="text-muted-foreground font-mono text-xs">
+              <div className="font-mono text-xs text-muted-foreground">
                 (Press <kbd>d</kbd> to toggle dark mode)
               </div>
             </CardFooter>
