@@ -9,10 +9,10 @@ import {
 } from "react-router"
 import { Spinner } from "~/components/ui/spinner"
 
-import type { Route } from "./+types/root"
-import "./app.css"
 import { Navbar } from "~/components/navbar"
 import { ThemeProvider } from "~/components/ui/theme-provider"
+import type { Route } from "./+types/root"
+import "./app.css"
 
 export function HydrateFallback() {
   return (
@@ -37,9 +37,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        {children}
-        <ScrollRestoration />
-        <Scripts />
+        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+          {children}
+          <ScrollRestoration />
+          <Scripts />
+        </ThemeProvider>
       </body>
     </html>
   )
@@ -47,12 +49,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-      <div className="mx-16 my-8">
-        <Navbar />
-        <Outlet />
-      </div>
-    </ThemeProvider>
+    <div className="px-16 py-8">
+      <Navbar />
+      <Outlet />
+    </div>
   )
 }
 

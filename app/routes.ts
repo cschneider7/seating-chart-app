@@ -18,5 +18,10 @@ export default [
     ]),
   ]),
 
-  route("classrooms/:classroomId", "routes/classrooms/classroom.tsx"),
+  ...prefix("classrooms", [
+    index("routes/classrooms/classroom-home.tsx"),
+    // route("new", "routes/classrooms/create-classroom.tsx"),
+    route(":classroomId", "routes/classrooms/classroom.tsx"),
+    // route(":classroomId/delete", "routes/classrooms/delete-classroom.tsx"),
+  ]),
 ] satisfies RouteConfig

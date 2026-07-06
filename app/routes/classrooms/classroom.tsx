@@ -1,5 +1,5 @@
-import type { Route } from "./+types/classroom"
 import type { Classroom } from "~/lib/types"
+import type { Route } from "./+types/classroom"
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -8,25 +8,16 @@ export function meta({}: Route.MetaArgs) {
   ]
 }
 
-const classrooms: Classroom[] = [
-  { classroomId: "1", period: 2, subject: "Math 2" },
-  { classroomId: "2", period: 3, subject: "Math 2" },
-  { classroomId: "3", period: 4, subject: "Math 3" },
-]
-
-export async function clientLoader({ params }: Route.ClientLoaderArgs) {
-  //const res = await fetch(`/api/v1/classrooms/${params.classroomId}`);
-  //const classroom = await res.json();
-  const classroom = classrooms.find((s) => s.classroomId === params.classroomId)
-  if (!classroom) {
-    throw new Error(`Classroom with ID ${params.classroomId} not found`)
+export async function loader({ params }: Route.ClientLoaderArgs) {
+  const res = await fetch(
+    `http://localhost:3000/api/v1/students/${params.classroomId}`
+  )
+  if (!res.ok) {
+    throw new Response("Classroom Not Found", { status: 404 })
   }
-  return classroom
-}
 
-// HydrateFallback is rendered while the client loader is running
-export function HydrateFallback() {
-  return <div>Loading...</div>
+  const json = await res.json()
+  return json.data
 }
 
 export default function Component({ loaderData }: Route.ComponentProps) {

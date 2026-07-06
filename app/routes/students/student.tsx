@@ -36,7 +36,6 @@ export async function loader({ params }: Route.ClientLoaderArgs) {
   }
 
   const json = await res.json()
-  console.log(json)
   return json.data
 }
 

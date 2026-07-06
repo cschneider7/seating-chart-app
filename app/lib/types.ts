@@ -7,6 +7,7 @@ export type Student = {
 }
 
 export type Classroom = {
+  uuid: string
   classroomId: string
   period: number
   subject: string
