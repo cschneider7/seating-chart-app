@@ -1,3 +1,15 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "~/components/ui/alert-dialog"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import {
@@ -10,9 +22,10 @@ import {
   CardTitle,
 } from "~/components/ui/card"
 
-import type { Route } from "./+types/student"
-import type { Student } from "~/lib/types"
+import { Trash2Icon } from "lucide-react"
 import { Form } from "react-router"
+import type { Student } from "~/lib/types"
+import type { Route } from "./+types/student"
 
 export async function loader({ params }: Route.ClientLoaderArgs) {
   const res = await fetch(
@@ -52,21 +65,33 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         <CardContent>Notes: Blah blah blah</CardContent>
         <CardFooter className="justify-end gap-2">
           <Button variant="outline">Edit</Button>
-          <Form
-            action={`/students/${student.uuid}/delete`}
-            method="delete"
-            onSubmit={(event) => {
-              if (
-                !confirm(`Are you sure you want to delete ${student.name}?`)
-              ) {
-                event.preventDefault()
-              }
-            }}
-          >
-            <Button variant="destructive" type="submit">
-              Delete
-            </Button>
-          </Form>
+          <AlertDialog>
+            <AlertDialogTrigger
+              render={<Button variant="destructive">Delete</Button>}
+            />
+            <AlertDialogContent size="sm">
+              <AlertDialogHeader>
+                <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                  <Trash2Icon />
+                </AlertDialogMedia>
+                <AlertDialogTitle>Delete {student.name}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete the student and cannot be undone.
+                  Are you sure you want to continue?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <Form action={`/students/${student.uuid}/delete`} method="post">
+                <AlertDialogFooter>
+                  <AlertDialogCancel variant="outline">
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction variant="destructive" type="submit">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </Form>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardFooter>
       </Card>
     </div>
