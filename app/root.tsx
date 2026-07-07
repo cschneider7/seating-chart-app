@@ -5,7 +5,6 @@ import {
   Scripts,
   ScrollRestoration,
   isRouteErrorResponse,
-  useNavigation,
 } from "react-router"
 import { Spinner } from "~/components/ui/spinner"
 
@@ -24,8 +23,6 @@ export function HydrateFallback() {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const navigation = useNavigation()
-  const isNavigating = Boolean(navigation.location)
   const theme = "light"
 
   return (
@@ -37,11 +34,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+        <ThemeProvider defaultTheme={theme} storageKey="vite-ui-theme">
           {children}
-          <ScrollRestoration />
-          <Scripts />
         </ThemeProvider>
+        <ScrollRestoration />
+        <Scripts />
       </body>
     </html>
   )
