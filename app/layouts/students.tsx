@@ -1,9 +1,9 @@
 import { SidebarProvider } from "~/components/ui/sidebar"
 import type { Route } from "./+types/students"
 
-import type { Student } from "~/lib/types"
-import { StudentSidebar } from "~/components/students-sidebar"
 import { Outlet } from "react-router"
+import { StudentSidebar } from "~/components/students-sidebar"
+import { getStudents } from "~/lib/db"
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -13,21 +13,16 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader() {
-  const res = await fetch("http://localhost:3000/api/v1/students")
-  if (!res.ok) {
-    throw new Error(`Error when getting list of students: ", ${res.status}`)
-  }
-
-  const json = await res.json()
-  return json.data
+  const students = await getStudents()
+  return { students: students }
 }
 
 export default function Layout({ loaderData }: Route.ComponentProps) {
-  const students: Student[] = loaderData
+  const { students } = loaderData
   return (
     <SidebarProvider>
       <StudentSidebar students={students} />
-      <main className="flex-1 pl-6">
+      <main className="w-full pl-4">
         <Outlet />
       </main>
     </SidebarProvider>

@@ -24,25 +24,25 @@ import {
 
 import { Trash2Icon } from "lucide-react"
 import { Form } from "react-router"
-import type { Student } from "~/lib/types"
+import { getClassroom, getStudent } from "~/lib/db"
 import type { Route } from "./+types/student"
 
 export async function loader({ params }: Route.ClientLoaderArgs) {
-  const res = await fetch(
-    `http://localhost:3000/api/v1/students/${params.studentId}`
-  )
-  if (!res.ok) {
-    throw new Response("Student Not Found", { status: 404 })
-  }
+  const student = await getStudent(params.studentId)
+  const classroom = student.classroom_uuid
+    ? await getClassroom(student.classroom_uuid)
+    : null
 
-  const json = await res.json()
-  return json.data
+  return {
+    student: student,
+    classroom: classroom,
+  }
 }
 
 export default function Component({ loaderData }: Route.ComponentProps) {
-  const student: Student = loaderData
+  const { student, classroom } = loaderData
   return (
-    <div className="w-[400px] justify-center">
+    <div className="justify-center">
       <Card className="relative mx-auto w-full max-w-sm pt-0">
         <div className="absolute inset-0 z-30 aspect-video bg-black/35" />
         <img
@@ -52,8 +52,8 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         />
         <CardHeader>
           <CardAction>
-            {student.classroom_id ? (
-              <Badge variant="secondary">Period {student.classroom_id}</Badge>
+            {classroom ? (
+              <Badge variant="secondary">Period {classroom.period}</Badge>
             ) : (
               <Badge variant="outline">Unassigned</Badge>
             )}

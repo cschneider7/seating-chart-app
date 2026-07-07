@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "~/components/ui/select"
 import { Textarea } from "~/components/ui/textarea"
+import { createStudent, getClassrooms } from "~/lib/db"
 import type { Route } from "./+types/create-student"
 
 const classrooms = [{ label: "Choose classroom", value: null }]
@@ -27,32 +28,37 @@ export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData()
   const info = Object.fromEntries(formData)
 
-  const response = await fetch("http://localhost:3000/api/v1/students", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      student_id: Number(info.studentId),
-      name: info.name,
-      classroom_id: info.classroomId ? Number(info.classroomId) : null,
-      seat_id: null,
-    }),
-  })
-
-  if (!response.ok) {
-    throw new Error("Error creating student: " + response.statusText)
+  if (!info.name || !info.studentId) {
+    throw new Error("Missing required fields: name and studentId")
   }
 
-  const data = await response.json()
-  console.log(data)
+  const student = await createStudent(
+    Number(info.studentId),
+    info.name as string,
+    info.classroomId ? (info.classroomId as string) : null
+  )
 
-  // Return a response (e.g., redirect to another page)
-  return redirect(`/students/${data.data.uuid}`)
+  return redirect(`/students/${student.uuid}`)
 }
 
-export default function Component() {
+export async function loader() {
+  const classrooms = await getClassrooms()
+  return { classrooms: classrooms }
+}
+
+export default function Component({ loaderData }: Route.ComponentProps) {
+  const { classrooms } = loaderData
   const navigate = useNavigate()
+
+  const classroomOptions: [{ label: string; value: string | null }] = [
+    { label: "Unassigned", value: null },
+  ]
+  classrooms.forEach((classroom) => {
+    classroomOptions.push({
+      label: `Period ${classroom.period} - ${classroom.subject}`,
+      value: classroom.uuid,
+    })
+  })
 
   return (
     <div className="w-full max-w-md">
@@ -75,13 +81,13 @@ export default function Component() {
                 <FieldDescription>
                   The classroom the student is enrolled in
                 </FieldDescription>
-                <Select items={classrooms}>
-                  <SelectTrigger name="classroomId" className="w-full max-w-48">
+                <Select items={classroomOptions} name="classroomId">
+                  <SelectTrigger className="w-full max-w-48">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {classrooms.map((item) => (
+                      {classroomOptions.map((item) => (
                         <SelectItem key={item.value} value={item.value}>
                           {item.label}
                         </SelectItem>

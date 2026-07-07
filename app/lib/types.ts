@@ -2,13 +2,12 @@ export type Student = {
   uuid: string
   student_id: number
   name: string
-  classroom_id: number
-  seat_id: number
+  classroom_uuid: string
+  seat_uuid: number
 }
 
 export type Classroom = {
   uuid: string
-  classroomId: string
   period: number
   subject: string
 }

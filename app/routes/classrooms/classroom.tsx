@@ -1,4 +1,13 @@
-import type { Classroom } from "~/lib/types"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card"
+import { getClassroom } from "~/lib/db"
 import type { Route } from "./+types/classroom"
 
 export function meta({}: Route.MetaArgs) {
@@ -9,26 +18,17 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ params }: Route.ClientLoaderArgs) {
-  const res = await fetch(
-    `http://localhost:3000/api/v1/students/${params.classroomId}`
-  )
-  if (!res.ok) {
-    throw new Response("Classroom Not Found", { status: 404 })
-  }
-
-  const json = await res.json()
-  return json.data
+  const classroom = await getClassroom(params.classroomId)
+  return { classroom: classroom }
 }
 
 export default function Component({ loaderData }: Route.ComponentProps) {
-  const { period, subject, classroomId } = loaderData
+  const { classroom } = loaderData
   return (
     <div>
       <div className="p-4">
-        <h2>
-          Period {period} - <i>{subject}</i>
-        </h2>
-        <p>Classroom ID: {classroomId}</p>
+        <h2>Period {classroom.period}</h2>
+        <h3>Subject: {classroom.subject}</h3>
       </div>
     </div>
   )
