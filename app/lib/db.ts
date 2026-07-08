@@ -1,4 +1,6 @@
-import type { Classroom, Student } from "~/lib/types"
+import * as z from "zod"
+import { createStudentFormSchema, editStudentFormSchema } from "~/lib/schemas"
+import type { Classroom, ClassroomConfig, Student } from "~/lib/types"
 
 export async function getStudent(studentId: string): Promise<Student> {
   const res = await fetch(`http://localhost:3000/api/v1/students/${studentId}`)
@@ -21,21 +23,14 @@ export async function getStudents(): Promise<Student[]> {
 }
 
 export async function createStudent(
-  studentId: number,
-  name: string,
-  classroomId: string | null
+  studentInfo: z.infer<typeof createStudentFormSchema>
 ): Promise<Student> {
   const response = await fetch("http://localhost:3000/api/v1/students", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      student_id: studentId,
-      name: name,
-      classroom_id: classroomId,
-      seat_id: null,
-    }),
+    body: JSON.stringify(studentInfo),
   })
 
   if (!response.ok) {
@@ -46,6 +41,26 @@ export async function createStudent(
   console.log(json)
 
   return json.data
+}
+
+export async function updateStudent(
+  studentId: string,
+  updates: z.infer<typeof editStudentFormSchema>
+) {
+  const response = await fetch(
+    `http://localhost:3000/api/v1/students/${studentId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error("Error creating student: " + response.statusText)
+  }
 }
 
 export async function getClassroom(classroomId: string): Promise<Classroom> {
@@ -67,5 +82,26 @@ export async function getClassrooms(): Promise<Classroom[]> {
   }
 
   const json = await res.json()
+  return json.data
+}
+
+export async function createClassroom(
+  classroomInfo: ClassroomConfig
+): Promise<Classroom> {
+  const response = await fetch("http://localhost:3000/api/v1/classrooms", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(classroomInfo),
+  })
+
+  if (!response.ok) {
+    throw new Error("Error creating classroom: " + response.statusText)
+  }
+
+  const json = await response.json()
+  console.log(json)
+
   return json.data
 }

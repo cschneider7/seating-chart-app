@@ -27,42 +27,63 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select"
-import { createStudent, getClassrooms } from "~/lib/db"
-import { createStudentFormSchema } from "~/lib/schemas"
-import type { Route } from "./+types/create-student"
+import { getClassrooms, getStudent, updateStudent } from "~/lib/db"
+import { editStudentFormSchema } from "~/lib/schemas"
+import type { Route } from "./+types/edit-student"
 
-export async function action({ request }: Route.ActionArgs) {
+export async function loader({ params }: Route.ClientLoaderArgs) {
+  const student = await getStudent(params.studentId)
+  const classrooms = await getClassrooms()
+
+  return {
+    student: student,
+    classrooms: classrooms,
+  }
+}
+
+export async function action({ params, request }: Route.ActionArgs) {
   const rawData = await request.json()
-  const result = createStudentFormSchema.safeParse(rawData)
+  const result = editStudentFormSchema.safeParse(rawData)
 
   if (!result.success) {
     return z.treeifyError(result.error)
   }
 
-  const student = await createStudent(result.data)
-  return redirect(`/students/${student.id}`)
-}
+  const student = await getStudent(params.studentId)
 
-export async function loader() {
-  const classrooms = await getClassrooms()
-  return { classrooms: classrooms }
+  await updateStudent(params.studentId, result.data)
+
+  // Redirect to student's page after updating
+  return redirect(`/students/${params.studentId}`)
 }
 
 export default function Component({ loaderData }: Route.ComponentProps) {
-  const { classrooms } = loaderData
-  const submit = useSubmit()
+  const { student, classrooms } = loaderData
+  let submit = useSubmit()
 
-  const form = useForm<z.infer<typeof createStudentFormSchema>>({
-    resolver: zodResolver(createStudentFormSchema),
+  const form = useForm<z.infer<typeof editStudentFormSchema>>({
+    resolver: zodResolver(editStudentFormSchema),
     defaultValues: {
-      name: "",
-      classroom_id: null,
-      seat_id: null,
+      name: student.name,
+      student_id: student.student_id,
+      classroom_id: student.classroom_id,
+      seat_id: student.seat_id,
     },
   })
 
-  const onSubmit = (data: z.infer<typeof createStudentFormSchema>) =>
-    submit(data, { method: "post", encType: "application/json" })
+  // formState is a proxy that only tracks fields read during render, so
+  // dirtyFields must be destructured here (not just inside onSubmit) for
+  // react-hook-form to keep it up to date.
+  const { dirtyFields } = form.formState
+
+  const onSubmit = (data: z.infer<typeof editStudentFormSchema>) => {
+    const changedData = Object.fromEntries(
+      Object.entries(data).filter(
+        ([key]) => dirtyFields[key as keyof typeof dirtyFields]
+      )
+    )
+    submit(changedData, { method: "post", encType: "application/json" })
+  }
 
   const classroomOptions: [{ label: string; value: string | null }] = [
     { label: "Unassigned", value: null },
@@ -76,13 +97,13 @@ export default function Component({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto w-full max-w-md">
-      <Card className="relative mx-auto w-full sm:max-w-md">
+      <Card className="w-full sm:max-w-md">
         <CardHeader>
-          <CardTitle>Create new student</CardTitle>
-          <CardDescription>Enter new student info here.</CardDescription>
+          <CardTitle>Edit student</CardTitle>
+          <CardDescription>Enter student info here.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form id="create-student" onSubmit={form.handleSubmit(onSubmit)}>
+          <form id="edit-student" onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup>
               <Controller
                 name="name"
@@ -175,7 +196,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
             >
               Reset
             </Button>
-            <Button type="submit" form="create-student">
+            <Button type="submit" form="edit-student">
               Submit
             </Button>
           </Field>
