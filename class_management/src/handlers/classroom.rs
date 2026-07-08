@@ -42,13 +42,13 @@ pub async fn classroom_list_handler(
 }
 
 pub async fn get_classroom_handler(
-    Path(uuid): Path<Uuid>,
+    Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let classroom = sqlx::query_as!(
         ClassroomModel,
-        r#"SELECT * FROM classrooms WHERE uuid = $1"#,
-        &uuid
+        r#"SELECT * FROM classrooms WHERE id = $1"#,
+        &id
     )
     .fetch_one(&data.db)
     .await
@@ -57,7 +57,7 @@ pub async fn get_classroom_handler(
             StatusCode::NOT_FOUND,
             Json(json!({
                 "status": "fail",
-                "message": format!("Classroom with UUID: {} not found", uuid)
+                "message": format!("Classroom with ID: {} not found", id)
             })),
         ),
         _ => (
@@ -111,14 +111,14 @@ pub async fn create_classroom_handler(
 }
 
 pub async fn update_classroom_handler(
-    Path(uuid): Path<Uuid>,
+    Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
     Json(body): Json<UpdateClassroomSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let classroom = sqlx::query_as!(
         ClassroomModel,
-        r#"SELECT * FROM classrooms WHERE uuid = $1"#,
-        &uuid
+        r#"SELECT * FROM classrooms WHERE id = $1"#,
+        &id
     )
     .fetch_one(&data.db)
     .await
@@ -127,7 +127,7 @@ pub async fn update_classroom_handler(
             StatusCode::NOT_FOUND,
             Json(json!({
                 "status": "fail",
-                "message": format!("Classroom with UUID: {} not found", uuid)
+                "message": format!("Classroom with ID: {} not found", id)
             })),
         ),
         _ => (
@@ -151,7 +151,7 @@ pub async fn update_classroom_handler(
         RETURNING *"#,
         &new_subject,
         new_period,
-        classroom.id
+        &classroom.id
     )
     .fetch_one(&data.db)
     .await
@@ -173,13 +173,13 @@ pub async fn update_classroom_handler(
 }
 
 pub async fn delete_classroom_handler(
-    Path(uuid): Path<Uuid>,
+    Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let classroom = sqlx::query_as!(
         ClassroomModel,
-        r#"DELETE FROM classrooms WHERE uuid = $1 RETURNING *"#,
-        &uuid
+        r#"DELETE FROM classrooms WHERE id = $1 RETURNING *"#,
+        &id
     )
     .fetch_one(&data.db)
     .await
@@ -188,7 +188,7 @@ pub async fn delete_classroom_handler(
             StatusCode::NOT_FOUND,
             Json(json!({
                 "status": "fail",
-                "message": format!("Classroom with UUID: {} not found", uuid)
+                "message": format!("Classroom with ID: {} not found", id)
             })),
         ),
         _ => (

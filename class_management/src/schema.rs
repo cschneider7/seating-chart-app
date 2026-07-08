@@ -1,4 +1,17 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use uuid::Uuid;
+
+/// Distinguishes a field that is missing from the request body (keep the
+/// existing value) from one explicitly set to `null` (clear it). Missing
+/// fields fall back to `#[serde(default)]` giving `None`; a present `null`
+/// deserializes here into `Some(None)`.
+fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+where
+    T: Deserialize<'de>,
+    D: Deserializer<'de>,
+{
+    Deserialize::deserialize(deserializer).map(Some)
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ClassroomSchema {
@@ -16,22 +29,24 @@ pub struct UpdateClassroomSchema {
 pub struct StudentSchema {
     pub student_id: i32,
     pub name: String,
-    pub classroom_id: Option<i64>,
-    pub seat_id: Option<i64>,
+    pub classroom_id: Option<Uuid>,
+    pub seat_id: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateStudentSchema {
     pub student_id: Option<i32>,
     pub name: Option<String>,
-    pub classroom_id: Option<i64>,
-    pub seat_id: Option<i64>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    pub classroom_id: Option<Option<Uuid>>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    pub seat_id: Option<Option<Uuid>>,
 }
 
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TableSchema {
-    pub classroom_id: i64,
+    pub classroom_id: Uuid,
     pub max_seats: i16,
 }
 
@@ -44,6 +59,6 @@ pub struct UpdateTableSchema {
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SeatSchema {
-    pub table_id: i64,
+    pub table_id: Uuid,
     pub position: i16,
 }
