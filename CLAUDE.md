@@ -20,9 +20,10 @@ npm run dev         # start Vite dev server with HMR at http://localhost:5173
 npm run build       # production build -> build/client and build/server
 npm run start       # serve the production build (react-router-serve)
 npm run typecheck   # regenerate route types (react-router typegen) then run tsc
+npm test            # run vitest (loader/action unit tests, single run, no watch)
 ```
 
-There is no lint script and no JS/TS test suite configured. Prettier is configured (`.prettierrc`: no semicolons, double quotes off/`singleQuote: false`, `prettier-plugin-tailwindcss` for class sorting) but not wired to an npm script — run `npx prettier --write .` directly if needed.
+There is no lint script. Prettier is configured (`.prettierrc`: no semicolons, double quotes off/`singleQuote: false`, `prettier-plugin-tailwindcss` for class sorting) but not wired to an npm script — run `npx prettier --write .` directly if needed.
 
 ### Backend (run from `class_management/`, or use `cargo <cmd> -p class_management` from repo root)
 
@@ -54,7 +55,7 @@ cargo test -p class_management <test_name>
 - `model.rs` — `sqlx::FromRow` structs mapping directly to DB rows (returned as-is in JSON responses).
 - `schema.rs` — separate `*Schema`/`Update*Schema` structs for request bodies (create takes required fields; update takes all-`Option` fields for partial updates).
 - Lookups by resource use the public-facing `uuid` (not the internal `id`/`i64` primary key) in URL paths, e.g. `/api/v1/students/{uuid}`. Update handlers fetch the existing row first, merge in any provided fields over the existing values, then issue the `UPDATE`.
-- Every handler returns `Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)>` with a `{"status": "success"|"fail"|"error", "data"|"message": ...}` envelope — follow this shape for new handlers rather than introducing a new response convention.
+- Every handler returns `Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)>` with an explicit `StatusCode` and a `{"data"|"message": ...}` envelope (no `"status"` field in the body — the HTTP status code carries that) — follow this shape for new handlers rather than introducing a new response convention.
 
 ### Database schema (`migrations/0001_create_tables.up.sql`)
 
@@ -69,7 +70,23 @@ Four tables: `classrooms`, `students`, `tables`, `seats`. Students optionally re
 - UI components in `app/components/ui/` are shadcn-generated (style `base-rhea`, Tailwind v4, path aliases configured in `components.json` — `~/components`, `~/lib`, `~/hooks`, etc., matching the `~/*` → `./app/*` tsconfig path). Use the shadcn CLI conventions (Base UI primitives via `render` prop, e.g. `<Button render={<Link .../>} />`) rather than hand-rolling new primitives.
 - `app/root.tsx` defines the document `Layout`, a `HydrateFallback` spinner, and a top-level `ErrorBoundary`; theme is currently hardcoded to `"light"` even though a `ThemeProvider`/`theme-toggle` exist.
 
+## Testing
+
+### Backend (`class_management/src/handlers/*.rs`)
+
+- Tests are colocated `#[cfg(test)] mod tests` blocks at the bottom of each handler file. There is no `lib.rs` (binary-only crate), so tests live inside the crate rather than in a separate `class_management/tests/` integration-test target — that's what lets them see private items like `AppState.db`.
+- Each test uses `#[sqlx::test(migrations = "../migrations")]` for an isolated, freshly-migrated database, and drives the real `Router` (from `routes::create_router`) via `tower::ServiceExt::oneshot`. Dev-dependencies: `tower` (`util` feature) and `http-body-util`; `sqlx::test` needs no extra sqlx feature beyond the already-default `macros` feature.
+- Migrations live at the repo root, not `class_management/migrations/` — every `#[sqlx::test]` must pass `migrations = "../migrations"` explicitly or it silently can't find the tables.
+- Running tests needs a live Postgres reachable via `DATABASE_URL` (the local `docker-compose.yaml` instance works); `SQLX_OFFLINE` only affects compile-time macro checking, not what `#[sqlx::test]` needs at runtime.
+- If you add a new `sqlx::query!`/`query_as!` call inside a test, regenerate the cache with `cargo sqlx prepare --workspace -- --tests` — the trailing `-- --tests` is required, or test-only queries are silently dropped from `.sqlx/` and `SQLX_OFFLINE` CI builds break. The local `.git/hooks/pre-commit` (not tracked in the repo) runs this same command before every commit.
+
+### Frontend (`app/routes/**/*.test.ts`)
+
+- Vitest, configured via a dedicated `vitest.config.ts` at the repo root rather than extending `vite.config.ts` (whose `reactRouter()` plugin does SSR/route-manifest work that isn't needed for plain function tests), plus `vite-tsconfig-paths` for the `~/*` alias.
+- Scope is loader/action logic only, not component rendering — no `@testing-library/react`, `jsdom`, or MSW. Tests call the exported `action`/`loader` functions directly with a constructed `Request`/`params`, mocking `fetch` via `vi.stubGlobal("fetch", vi.fn())` and resolving real `Response` objects (matches `db.ts`'s `response.ok`/`.json()` usage).
+- Colocated as `*.test.ts` next to each route file, e.g. `app/routes/students/create-student.test.ts`.
+
 ## CI (`.github/workflows/`)
 
-- `node.js.yml`: `npm ci` + `npm run build` on Node 22.x and 26.x.
-- `rust.yml`: `cargo test --all-features`, `cargo fmt` check, and `cargo clippy -- -D warnings`, all with `SQLX_OFFLINE=true` — meaning any handler SQL change must have matching `.sqlx/` cache files committed (see `cargo sqlx prepare` note above) or CI will fail independently of local runs.
+- `node.js.yml`: `npm ci` + `npm run build --if-present` + `npm test`, on Node 22.x and 26.x.
+- `rust.yml`: two jobs. `test` spins up a `postgres:18` service (with `DATABASE_URL` pointed at it) and runs `cargo test --all-features` under workflow-level `SQLX_OFFLINE=true` — compilation checks queries against `.sqlx/`, then `#[sqlx::test]` uses the live service DB at runtime. `formatting` runs `cargo fmt --check` and `cargo clippy -- -D warnings`. Any handler SQL change (production or test-only) must have matching `.sqlx/` cache files committed (see Testing section above) or the `test` job's compile step fails independently of local runs.
