@@ -81,6 +81,11 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
           variant="outline"
           render={<Link to={`/classrooms/${classroom.id}`}>View</Link>}
         />
+        <Button
+          size="sm"
+          variant="outline"
+          render={<Link to={`/classrooms/${classroom.id}/edit`}>Edit</Link>}
+        />
         <AlertDialog>
           <AlertDialogTrigger
             render={

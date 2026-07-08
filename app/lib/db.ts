@@ -1,5 +1,9 @@
 import * as z from "zod"
-import { createStudentFormSchema, editStudentFormSchema } from "~/lib/schemas"
+import {
+  createStudentFormSchema,
+  editClassroomFormSchema,
+  editStudentFormSchema,
+} from "~/lib/schemas"
 import type { Classroom, ClassroomConfig, Student } from "~/lib/types"
 
 export async function getStudent(studentId: string): Promise<Student> {
@@ -104,4 +108,24 @@ export async function createClassroom(
   console.log(json)
 
   return json.data
+}
+
+export async function updateClassroom(
+  classroomId: string,
+  updates: z.infer<typeof editClassroomFormSchema>
+) {
+  const response = await fetch(
+    `http://localhost:3000/api/v1/classrooms/${classroomId}`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(updates),
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error("Error updating classroom: " + response.statusText)
+  }
 }

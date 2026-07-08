@@ -28,3 +28,23 @@ export const editStudentFormSchema = z.object({
   classroom_id: z.nullish(z.uuidv4()),
   seat_id: z.nullish(z.uuidv4()),
 })
+
+export const createClassroomFormSchema = z.object({
+  period: z.coerce.number<number>().int().positive(),
+  subject: z
+    .string()
+    .trim()
+    .min(1, "Subject must be at least 0 characters.")
+    .max(50, "Subject must be at most 30 characters."),
+})
+
+export const editClassroomFormSchema = z.object({
+  period: z.optional(z.coerce.number<number>().int().positive()),
+  subject: z.optional(
+    z
+      .string()
+      .trim()
+      .min(1, "Subject must be at least 0 characters.")
+      .max(50, "Subject must be at most 30 characters.")
+  ),
+})

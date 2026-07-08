@@ -23,6 +23,7 @@ export default [
     index("routes/classrooms/classroom-home.tsx"),
     route("new", "routes/classrooms/create-classroom.tsx"),
     route(":classroomId", "routes/classrooms/classroom.tsx"),
+    route(":classroomId/edit", "routes/classrooms/edit-classroom.tsx"),
     route(":classroomId/delete", "routes/classrooms/delete-classroom.tsx"),
   ]),
 ] satisfies RouteConfig
