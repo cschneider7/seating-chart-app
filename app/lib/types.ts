@@ -1,13 +1,17 @@
-export type Student = {
-  uuid: string
+import * as z from "zod"
+
+export interface Student {
+  id: string
   student_id: number
   name: string
-  classroom_uuid: string
-  seat_uuid: number
+  classroom_id: string | null
+  seat_id: string | null
 }
 
-export type Classroom = {
-  uuid: string
+export interface Classroom {
+  id: string
   period: number
   subject: string
 }
+export type ClassroomConfig = Omit<Classroom, "id">
+export type UpdateClassroomConfig = Partial<ClassroomConfig>

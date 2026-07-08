@@ -23,14 +23,14 @@ import {
 } from "~/components/ui/card"
 
 import { Trash2Icon } from "lucide-react"
-import { Form } from "react-router"
+import { Form, Link } from "react-router"
 import { getClassroom, getStudent } from "~/lib/db"
 import type { Route } from "./+types/student"
 
 export async function loader({ params }: Route.ClientLoaderArgs) {
   const student = await getStudent(params.studentId)
-  const classroom = student.classroom_uuid
-    ? await getClassroom(student.classroom_uuid)
+  const classroom = student.classroom_id
+    ? await getClassroom(student.classroom_id)
     : null
 
   return {
@@ -61,9 +61,14 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           <CardTitle>{student.name}</CardTitle>
           <CardDescription>Student ID: {student.student_id}</CardDescription>
         </CardHeader>
-        <CardContent>Notes: Blah blah blah</CardContent>
+        <CardContent>
+          Tags: <Badge variant="secondary">TODO</Badge>
+        </CardContent>
         <CardFooter className="justify-end gap-2">
-          <Button variant="outline">Edit</Button>
+          <Button
+            variant="outline"
+            render={<Link to={`/students/${student.id}/edit`}>Edit</Link>}
+          />
           <AlertDialog>
             <AlertDialogTrigger
               render={<Button variant="destructive">Delete</Button>}
@@ -79,7 +84,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
                   Are you sure you want to continue?
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <Form action={`/students/${student.uuid}/delete`} method="post">
+              <Form action={`/students/${student.id}/delete`} method="post">
                 <AlertDialogFooter>
                   <AlertDialogCancel variant="outline">
                     Cancel

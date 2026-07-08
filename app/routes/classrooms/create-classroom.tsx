@@ -18,35 +18,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select"
+import { createClassroom } from "~/lib/db"
+import type { ClassroomConfig } from "~/lib/types"
 import type { Route } from "./+types/create-classroom"
 
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData()
   const info = Object.fromEntries(formData)
 
-  const body = JSON.stringify({
-    subject: info.subject,
-    period: Number(info.period),
-  })
-  console.log("Creating classroom with body:", body)
-
-  const response = await fetch("http://localhost:3000/api/v1/classrooms", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: body,
-  })
-
-  if (!response.ok) {
-    throw new Error("Error creating classroom: " + response.statusText)
+  if (!info.subject || !info.period) {
+    throw new Error("Missing required fields: subject and period")
   }
 
-  const json = await response.json()
-  console.log(json)
+  const classroomInfo: ClassroomConfig = {
+    period: Number(info.period),
+    subject: info.subject as string,
+  }
 
-  // Return a response (e.g., redirect to another page)
-  return redirect(`/classrooms/${json.data.uuid}`)
+  const classroom = await createClassroom(classroomInfo)
+  return redirect(`/classrooms/${classroom.id}`)
 }
 
 export default function Component() {

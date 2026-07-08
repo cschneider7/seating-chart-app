@@ -79,7 +79,7 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
         <Button
           size="sm"
           variant="outline"
-          render={<Link to={`/classrooms/${classroom.uuid}`}>View</Link>}
+          render={<Link to={`/classrooms/${classroom.id}`}>View</Link>}
         />
         <AlertDialog>
           <AlertDialogTrigger
@@ -102,7 +102,7 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
                 Are you sure you want to continue?
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <Form action={`/classrooms/${classroom.uuid}/delete`} method="post">
+            <Form action={`/classrooms/${classroom.id}/delete`} method="post">
               <AlertDialogFooter>
                 <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
                 <AlertDialogAction variant="destructive" type="submit">
@@ -128,7 +128,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           <Button
             render={
               <Link to="/classrooms/new">
-                <Plus size="xs" />
+                <Plus />
                 <span>Create classroom</span>
               </Link>
             }
@@ -136,7 +136,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {classrooms.map((classroom) => (
-              <div key={classroom.uuid} className="m-w-full flex flex-col">
+              <div key={classroom.id} className="m-w-full flex flex-col">
                 <ClassroomSummary classroom={classroom} />
               </div>
             ))}

@@ -1,3 +1,6 @@
+import { Plus, Search } from "lucide-react"
+import { Link, NavLink } from "react-router"
+import { Label } from "~/components/ui/label"
 import {
   Sidebar,
   SidebarContent,
@@ -12,9 +15,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "~/components/ui/sidebar"
-import { Label } from "~/components/ui/label"
-import { Link, NavLink } from "react-router"
-import { Plus, Search } from "lucide-react"
 
 import type { Student } from "~/lib/types"
 
@@ -52,10 +52,10 @@ export function StudentSidebar({ students }: { students: Student[] }) {
           />
           <SidebarMenu>
             {students.map((student) => (
-              <SidebarMenuItem key={student.student_id}>
+              <SidebarMenuItem key={student.id}>
                 <SidebarMenuButton
                   render={
-                    <NavLink to={`/students/${student.uuid}`}>
+                    <NavLink to={`/students/${student.id}`}>
                       {student.name}
                     </NavLink>
                   }
