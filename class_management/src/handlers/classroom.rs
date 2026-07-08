@@ -25,53 +25,55 @@ pub async fn classroom_list_handler(
     .fetch_all(&data.db)
     .await
     .map_err(|e| {
-        let error_response = json!({
-            "status": "error",
-            "message": format!("Database error: {}", e),
-        });
-        (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "status": "fail",
+                "message": format!("Database error: {}", e),
+            })),
+        )
     })?;
 
     let response = json!({
-        "status": "ok",
-        "count": classrooms.len(),
-        "notes": classrooms
+        "status": "success",
+        "data": json!(classrooms)
     });
     Ok(Json(response))
 }
 
 pub async fn get_classroom_handler(
-    Path(uuid): Path<Uuid>,
+    Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let query_result = sqlx::query_as!(
+    let classroom = sqlx::query_as!(
         ClassroomModel,
-        r#"SELECT * FROM classrooms WHERE uuid = $1"#,
-        &uuid
+        r#"SELECT * FROM classrooms WHERE id = $1"#,
+        &id
     )
     .fetch_one(&data.db)
-    .await;
-
-    match query_result {
-        Ok(classroom) => {
-            let response = json!({
-                "status": "success",
-                "data": json!({"classroom": classroom}),
-            });
-            Ok(Json(response))
-        }
-        Err(sqlx::Error::RowNotFound) => {
-            let error_response = json!({
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => (
+            StatusCode::NOT_FOUND,
+            Json(json!({
                 "status": "fail",
-                "message": format!("Classroom with UUID: {} not found", uuid)
-            });
-            Err((StatusCode::NOT_FOUND, Json(error_response)))
-        }
-        Err(e) => Err((
+                "message": format!("Classroom with ID: {} not found", id)
+            })),
+        ),
+        _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"status": "error", "message": format!("{:?}", e)})),
-        )),
-    }
+            Json(json!({
+                "status": "fail",
+                "message": format!("{:?}", e)
+            })),
+        ),
+    })?;
+
+    let response = json!({
+        "status": "success",
+        "data": json!(classroom),
+    });
+    Ok(Json(response))
 }
 
 pub async fn create_classroom_handler(
@@ -91,62 +93,51 @@ pub async fn create_classroom_handler(
     )
     .fetch_one(&data.db)
     .await
-    .map_err(|e| e.to_string());
-
-    if let Err(err) = classroom {
-        if err.to_string().contains("duplicate key value") {
-            let error_response = json!({
-                "status": "error",
-                "message": "Classroom already exists",
-            });
-            return Err((StatusCode::CONFLICT, Json(error_response)));
-        }
-
-        return Err((
+    .map_err(|e| {
+        (
             StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"status": "error", "message": format!("{:?}", err)})),
-        ));
-    }
+            Json(json!({
+                "status": "error",
+                "message": format!("{:?}", e)
+            })),
+        )
+    })?;
 
     let response = json!({
         "status": "success",
-        "data": json!({"classroom": classroom}),
+        "data": json!(classroom),
     });
     Ok(Json(response))
 }
 
 pub async fn update_classroom_handler(
-    Path(uuid): Path<Uuid>,
+    Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
     Json(body): Json<UpdateClassroomSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let query_result = sqlx::query_as!(
+    let classroom = sqlx::query_as!(
         ClassroomModel,
-        r#"SELECT * FROM classrooms WHERE uuid = $1"#,
-        &uuid
+        r#"SELECT * FROM classrooms WHERE id = $1"#,
+        &id
     )
     .fetch_one(&data.db)
-    .await;
-
-    let classroom = match query_result {
-        Ok(classroom) => classroom,
-        Err(sqlx::Error::RowNotFound) => {
-            let error_response = serde_json::json!({
-                "status": "error",
-                "message": format!("classroom with UUID: {} not found", uuid)
-            });
-            return Err((StatusCode::NOT_FOUND, Json(error_response)));
-        }
-        Err(e) => {
-            return Err((
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "status": "error",
-                    "message": format!("{:?}",e)
-                })),
-            ));
-        }
-    };
+    .await
+    .map_err(|e| match e {
+        sqlx::Error::RowNotFound => (
+            StatusCode::NOT_FOUND,
+            Json(json!({
+                "status": "fail",
+                "message": format!("Classroom with ID: {} not found", id)
+            })),
+        ),
+        _ => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "status": "fail",
+                "message": format!("{:?}", e)
+            })),
+        ),
+    })?;
 
     let new_subject = body.subject.as_ref().unwrap_or(&classroom.subject);
     let new_period = body.period.unwrap_or(classroom.period);
@@ -160,7 +151,7 @@ pub async fn update_classroom_handler(
         RETURNING *"#,
         &new_subject,
         new_period,
-        classroom.id
+        &classroom.id
     )
     .fetch_one(&data.db)
     .await
@@ -168,7 +159,7 @@ pub async fn update_classroom_handler(
         (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
-                "status": "error",
+                "status": "fail",
                 "message": format!("{:?}", e)
             })),
         )
@@ -176,19 +167,19 @@ pub async fn update_classroom_handler(
 
     let response = json!({
         "status": "success",
-        "data": json!({"classroom": updated_classroom})
+        "data": json!(updated_classroom)
     });
     Ok(Json(response))
 }
 
 pub async fn delete_classroom_handler(
-    Path(uuid): Path<Uuid>,
+    Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let query_result = sqlx::query_as!(
+    let classroom = sqlx::query_as!(
         ClassroomModel,
-        r#"DELETE FROM classrooms WHERE uuid = $1 RETURNING *"#,
-        &uuid
+        r#"DELETE FROM classrooms WHERE id = $1 RETURNING *"#,
+        &id
     )
     .fetch_one(&data.db)
     .await
@@ -196,14 +187,14 @@ pub async fn delete_classroom_handler(
         sqlx::Error::RowNotFound => (
             StatusCode::NOT_FOUND,
             Json(json!({
-                "status": "error",
-                "message": "Classroom not found"
+                "status": "fail",
+                "message": format!("Classroom with ID: {} not found", id)
             })),
         ),
         _ => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({
-                "status": "error",
+                "status": "fail",
                 "message": format!("{:?}", e)
             })),
         ),
@@ -212,7 +203,7 @@ pub async fn delete_classroom_handler(
     let response = json!({
         "status": "success",
         "message": "Classroom deleted successfully",
-        "data": { "deleted_classroom": query_result }
+        "data": json!(classroom),
     });
     Ok(Json(response))
 }

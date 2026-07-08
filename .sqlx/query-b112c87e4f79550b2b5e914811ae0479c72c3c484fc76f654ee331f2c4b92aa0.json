@@ -1,12 +1,12 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM students WHERE uuid = $1",
+  "query": "UPDATE students SET\n            student_id = $1,\n            name = $2,\n            classroom_id = $3,\n            seat_id = $4\n        WHERE id = $5\n        RETURNING *",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int8",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
             "table": "students",
@@ -16,17 +16,6 @@
       },
       {
         "ordinal": 1,
-        "name": "uuid",
-        "type_info": "Uuid",
-        "origin": {
-          "Table": {
-            "table": "students",
-            "name": "uuid"
-          }
-        }
-      },
-      {
-        "ordinal": 2,
         "name": "student_id",
         "type_info": "Int4",
         "origin": {
@@ -37,7 +26,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 2,
         "name": "name",
         "type_info": "Text",
         "origin": {
@@ -48,9 +37,9 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 3,
         "name": "classroom_id",
-        "type_info": "Int8",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
             "table": "students",
@@ -59,9 +48,9 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 4,
         "name": "seat_id",
-        "type_info": "Int8",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
             "table": "students",
@@ -70,7 +59,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 5,
         "name": "created_time",
         "type_info": "Timestamptz",
         "origin": {
@@ -83,11 +72,14 @@
     ],
     "parameters": {
       "Left": [
+        "Int4",
+        "Text",
+        "Uuid",
+        "Uuid",
         "Uuid"
       ]
     },
     "nullable": [
-      false,
       false,
       false,
       false,
@@ -96,5 +88,5 @@
       true
     ]
   },
-  "hash": "7eaca2f88c835c8e5642a0aef760b9531c7c3f5898b34600f61196389d20bc81"
+  "hash": "b112c87e4f79550b2b5e914811ae0479c72c3c484fc76f654ee331f2c4b92aa0"
 }

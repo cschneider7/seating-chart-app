@@ -32,45 +32,39 @@ pub async fn student_list_handler(
         })?;
 
     let response = json!({
-        "status": "success",
         "data": json!(students)
     });
-    Ok(Json(response))
+    Ok((StatusCode::OK, Json(response)))
 }
 
 pub async fn get_student_handler(
-    Path(uuid): Path<Uuid>,
+    Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let student = sqlx::query_as!(
-        StudentModel,
-        r#"SELECT * FROM students WHERE uuid = $1"#,
-        &uuid
-    )
-    .fetch_one(&data.db)
-    .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => (
-            StatusCode::NOT_FOUND,
-            Json(json!({
-                "status": "fail",
-                "message": format!("Student with UUID: {} not found", uuid)
-            })),
-        ),
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "status": "fail",
-                "message": format!("{:?}", e)
-            })),
-        ),
-    })?;
+    let student = sqlx::query_as!(StudentModel, r#"SELECT * FROM students WHERE id = $1"#, &id)
+        .fetch_one(&data.db)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => (
+                StatusCode::NOT_FOUND,
+                Json(json!({
+                    "status": "fail",
+                    "message": format!("Student with ID: {} not found", id)
+                })),
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "fail",
+                    "message": format!("{:?}", e)
+                })),
+            ),
+        })?;
 
     let response = json!({
-        "status": "success",
         "data": json!(student),
     });
-    Ok(Json(response))
+    Ok((StatusCode::OK, Json(response)))
 }
 
 pub async fn create_student_handler(
@@ -105,59 +99,48 @@ pub async fn create_student_handler(
     })?;
 
     let response = json!({
-        "status": "success",
         "data": json!(student),
     });
-    Ok(Json(response))
+    Ok((StatusCode::CREATED, Json(response)))
 }
 
 pub async fn update_student_handler(
-    Path(uuid): Path<Uuid>,
+    Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
     Json(body): Json<UpdateStudentSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let student = sqlx::query_as!(
-        StudentModel,
-        r#"SELECT * FROM students WHERE uuid = $1"#,
-        &uuid
-    )
-    .fetch_one(&data.db)
-    .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => (
-            StatusCode::NOT_FOUND,
-            Json(json!({
-                "status": "fail",
-                "message": format!("Student with UUID: {} not found", uuid)
-            })),
-        ),
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "status": "fail",
-                "message": format!("{:?}", e)
-            })),
-        ),
-    })?;
+    let student = sqlx::query_as!(StudentModel, r#"SELECT * FROM students WHERE id = $1"#, &id)
+        .fetch_one(&data.db)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => (
+                StatusCode::NOT_FOUND,
+                Json(json!({
+                    "status": "fail",
+                    "message": format!("Student with ID: {} not found", id)
+                })),
+            ),
+            _ => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "fail",
+                    "message": format!("{:?}", e)
+                })),
+            ),
+        })?;
 
     let new_student_id = body.student_id.unwrap_or(student.student_id);
     let new_name = body.name.as_ref().unwrap_or(&student.name);
-    let new_classroom_id = match body.classroom_id {
-        Some(classroom_id) => Some(classroom_id),
-        _ => student.classroom_id,
-    };
-    let new_seat_id = match body.seat_id {
-        Some(seat_id) => Some(seat_id),
-        _ => student.seat_id,
-    };
+    let new_classroom_id = body.classroom_id.unwrap_or(student.classroom_id);
+    let new_seat_id = body.seat_id.unwrap_or(student.seat_id);
 
     let updated_student = sqlx::query_as!(
         StudentModel,
         r#"UPDATE students SET
             student_id = $1,
             name = $2,
-            classroom_id = COALESCE($3, classroom_id),
-            seat_id = COALESCE($4, seat_id)
+            classroom_id = $3,
+            seat_id = $4
         WHERE id = $5
         RETURNING *"#,
         new_student_id,
@@ -179,20 +162,19 @@ pub async fn update_student_handler(
     })?;
 
     let response = json!({
-        "status": "success",
         "data": json!(updated_student)
     });
-    Ok(Json(response))
+    Ok((StatusCode::OK, Json(response)))
 }
 
 pub async fn delete_student_handler(
-    Path(uuid): Path<Uuid>,
+    Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let student = sqlx::query_as!(
         StudentModel,
-        r#"DELETE FROM students WHERE uuid = $1 RETURNING *"#,
-        &uuid
+        r#"DELETE FROM students WHERE id = $1 RETURNING *"#,
+        &id
     )
     .fetch_one(&data.db)
     .await
@@ -201,7 +183,7 @@ pub async fn delete_student_handler(
             StatusCode::NOT_FOUND,
             Json(json!({
                 "status": "fail",
-                "message": format!("Student with UUID: {} not found", uuid)
+                "message": format!("Student with ID: {} not found", id)
             })),
         ),
         _ => (
@@ -214,9 +196,7 @@ pub async fn delete_student_handler(
     })?;
 
     let response = json!({
-        "status": "success",
-        "message": "Student deleted successfully",
         "data": json!(student),
     });
-    Ok(Json(response))
+    Ok((StatusCode::OK, Json(response)))
 }

@@ -1,0 +1,149 @@
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Controller, useForm } from "react-hook-form"
+import { redirect, useSubmit } from "react-router"
+import * as z from "zod"
+import { Button } from "~/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "~/components/ui/field"
+import { Input } from "~/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select"
+import { createClassroom } from "~/lib/db"
+import { createClassroomFormSchema } from "~/lib/schemas"
+import type { Route } from "./+types/create-classroom"
+
+const periodOptions = Array.from({ length: 9 }, (_, i) => ({
+  label: i.toString(),
+  value: i,
+}))
+
+export async function action({ request }: Route.ActionArgs) {
+  const rawData = await request.json()
+  const result = createClassroomFormSchema.safeParse(rawData)
+
+  if (!result.success) {
+    return z.treeifyError(result.error)
+  }
+
+  const classroom = await createClassroom(result.data)
+  return redirect(`/classrooms/${classroom.id}`)
+}
+
+export default function Component() {
+  const submit = useSubmit()
+
+  const form = useForm<z.infer<typeof createClassroomFormSchema>>({
+    resolver: zodResolver(createClassroomFormSchema),
+    defaultValues: {
+      subject: "",
+    },
+  })
+
+  const onSubmit = (data: z.infer<typeof createClassroomFormSchema>) =>
+    submit(data, { method: "post", encType: "application/json" })
+
+  return (
+    <div className="mx-auto w-full max-w-md">
+      <Card className="relative mx-auto w-full sm:max-w-md">
+        <CardHeader>
+          <CardTitle>Create new classroom</CardTitle>
+          <CardDescription>Enter new classroom info here.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form id="create-classroom" onSubmit={form.handleSubmit(onSubmit)}>
+            <FieldGroup>
+              <Controller
+                name="subject"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel>
+                      Subject<span className="text-destructive">*</span>
+                    </FieldLabel>
+                    <Input
+                      {...field}
+                      aria-invalid={fieldState.invalid}
+                      placeholder="Math 2"
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="period"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel>
+                      Period Number
+                      <span className="text-destructive">*</span>
+                    </FieldLabel>
+                    <Select
+                      name={field.name}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      items={periodOptions}
+                    >
+                      <SelectTrigger
+                        aria-invalid={fieldState.invalid}
+                        className="w-full max-w-48"
+                      >
+                        <SelectValue placeholder="Select a period" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectGroup>
+                          {periodOptions.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </form>
+        </CardContent>
+        <CardFooter>
+          <Field orientation="horizontal">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => form.reset()}
+            >
+              Reset
+            </Button>
+            <Button type="submit" form="create-classroom">
+              Submit
+            </Button>
+          </Field>
+        </CardFooter>
+      </Card>
+    </div>
+  )
+}

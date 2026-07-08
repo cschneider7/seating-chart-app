@@ -1,5 +1,6 @@
 "use client"
 
+import { NavLink } from "react-router"
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -9,7 +10,6 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "~/components/ui/navigation-menu"
-import { NavLink } from "react-router"
 import { ThemeToggle } from "~/components/ui/theme-toggle"
 
 export function Navbar() {
@@ -25,6 +25,11 @@ export function Navbar() {
           />
         </NavigationMenuItem>
         <NavigationMenuItem>
+          <NavigationMenuLink
+            render={<NavLink to="/classrooms">Classrooms</NavLink>}
+          />
+        </NavigationMenuItem>
+        {/* <NavigationMenuItem>
           <NavigationMenuTrigger>Classes</NavigationMenuTrigger>
           <NavigationMenuContent>
             <ul>
@@ -39,7 +44,7 @@ export function Navbar() {
               />
             </ul>
           </NavigationMenuContent>
-        </NavigationMenuItem>
+        </NavigationMenuItem> */}
         <NavigationMenuItem className="ml-auto">
           <ThemeToggle />
         </NavigationMenuItem>

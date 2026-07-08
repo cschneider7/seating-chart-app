@@ -1,12 +1,12 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM classrooms WHERE uuid = $1",
+  "query": "SELECT * FROM classrooms WHERE id = $1",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
         "name": "id",
-        "type_info": "Int8",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
             "table": "classrooms",
@@ -16,17 +16,6 @@
       },
       {
         "ordinal": 1,
-        "name": "uuid",
-        "type_info": "Uuid",
-        "origin": {
-          "Table": {
-            "table": "classrooms",
-            "name": "uuid"
-          }
-        }
-      },
-      {
-        "ordinal": 2,
         "name": "subject",
         "type_info": "Text",
         "origin": {
@@ -37,7 +26,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 2,
         "name": "period",
         "type_info": "Int2",
         "origin": {
@@ -48,7 +37,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 3,
         "name": "created_time",
         "type_info": "Timestamptz",
         "origin": {
@@ -68,9 +57,8 @@
       false,
       false,
       false,
-      false,
       true
     ]
   },
-  "hash": "d0a5327bd4b177e37ad722787a1410f14f0a9d743b686017a4eccbc3bd3e5fb4"
+  "hash": "f2948b0412761f7cc7ef62e1fa1047161e5a90bd5541b8ff3fbf3ab01c71bf76"
 }
