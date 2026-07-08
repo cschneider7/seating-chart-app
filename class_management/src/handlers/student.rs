@@ -131,8 +131,6 @@ pub async fn update_student_handler(
 
     let new_student_id = body.student_id.unwrap_or(student.student_id);
     let new_name = body.name.as_ref().unwrap_or(&student.name);
-    // classroom_id/seat_id are present-but-null when the client explicitly
-    // unassigns the student, vs. absent when the field wasn't touched at all.
     let new_classroom_id = body.classroom_id.unwrap_or(student.classroom_id);
     let new_seat_id = body.seat_id.unwrap_or(student.seat_id);
 

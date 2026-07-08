@@ -2,9 +2,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use uuid::Uuid;
 
 /// Distinguishes a field that is missing from the request body (keep the
-/// existing value) from one explicitly set to `null` (clear it). Missing
-/// fields fall back to `#[serde(default)]` giving `None`; a present `null`
-/// deserializes here into `Some(None)`.
+/// existing value) from one explicitly set to `null` (clear it)
 fn deserialize_some<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
 where
     T: Deserialize<'de>,
