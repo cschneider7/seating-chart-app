@@ -42,8 +42,6 @@ export async function createStudent(
   }
 
   const json = await response.json()
-  console.log(json)
-
   return json.data
 }
 
@@ -105,8 +103,6 @@ export async function createClassroom(
   }
 
   const json = await response.json()
-  console.log(json)
-
   return json.data
 }
 

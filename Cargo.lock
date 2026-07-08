@@ -189,10 +189,12 @@ dependencies = [
  "axum",
  "chrono",
  "dotenv",
+ "http-body-util",
  "serde",
  "serde_json",
  "sqlx",
  "tokio",
+ "tower",
  "uuid",
 ]
 
