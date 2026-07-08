@@ -14,7 +14,6 @@ export function ThemeToggle() {
   const { setTheme } = useTheme();
   const fetcher = useFetcher();
 
-  // Read the current theme from the root loader data
   const rootData = useRouteLoaderData<{ theme: Theme }>("root");
   const currentTheme = rootData?.theme ?? "light";
 

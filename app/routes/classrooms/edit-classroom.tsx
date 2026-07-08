@@ -65,9 +65,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
     },
   })
 
-  // formState is a proxy that only tracks fields read during render, so
-  // dirtyFields must be destructured here (not just inside onSubmit) for
-  // react-hook-form to keep it up to date.
+  // formState is a proxy; dirtyFields must be read here, not inside onSubmit.
   const { dirtyFields } = form.formState
 
   const onSubmit = (data: z.infer<typeof editClassroomFormSchema>) => {

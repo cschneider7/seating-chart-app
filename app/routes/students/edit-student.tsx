@@ -53,7 +53,6 @@ export async function action({ params, request }: Route.ActionArgs) {
 
   await updateStudent(params.studentId, result.data)
 
-  // Redirect to student's page after updating
   return redirect(`/students/${params.studentId}`)
 }
 
@@ -71,9 +70,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
     },
   })
 
-  // formState is a proxy that only tracks fields read during render, so
-  // dirtyFields must be destructured here (not just inside onSubmit) for
-  // react-hook-form to keep it up to date.
+  // formState is a proxy; dirtyFields must be read here, not inside onSubmit.
   const { dirtyFields } = form.formState
 
   const onSubmit = (data: z.infer<typeof editStudentFormSchema>) => {
