@@ -20,7 +20,7 @@ npm run dev         # start Vite dev server with HMR at http://localhost:5173
 npm run build       # production build -> build/client and build/server
 npm run start       # serve the production build (react-router-serve)
 npm run typecheck   # regenerate route types (react-router typegen) then run tsc
-npm test            # run vitest (loader/action unit tests, single run, no watch)
+npm test            # run vitest (route loader/action + pure state-module unit tests, single run, no watch)
 ```
 
 There is no lint script. Prettier is configured (`.prettierrc`: no semicolons, double quotes off/`singleQuote: false`, `prettier-plugin-tailwindcss` for class sorting) but not wired to an npm script — run `npx prettier --write .` directly if needed.
@@ -61,6 +61,8 @@ cargo test -p class_management <test_name>
 
 Four tables: `classrooms`, `students`, `tables`, `seats`. Students optionally reference a `classroom_id` and `seat_id`; seats belong to tables; tables belong to classrooms. Only `classrooms` and `students` currently have API handlers/routes — `tables`/`seats` are modeled in Rust but not yet wired up.
 
+Despite that, the frontend's seating chart (see below) already has a fully interactive tables/seats UI — it just has nowhere to persist to yet, so that state is local-only and resets on every refresh. Wiring it up is a known follow-up: it will need new handlers/routes for `tables`/`seats` (following the CRUD-per-file pattern above) and likely new columns, since `tables` has no x/y position field and `seats.position` is a seat's ordinal within its table, not a canvas coordinate.
+
 ### Frontend (`app/`)
 
 - Routes are declared explicitly in `app/routes.ts` using `@react-router/dev/routes` helpers (`index`, `route`, `layout`, `prefix`) — this is the single source of truth for the route tree, not filesystem-based routing. When adding a page, add its entry here.
@@ -68,7 +70,9 @@ Four tables: `classrooms`, `students`, `tables`, `seats`. Students optionally re
 - `app/lib/db.ts` holds typed fetch wrappers (`getStudent`, `getStudents`, `createStudent`, `getClassroom`, `getClassrooms`) used by loaders — but **not all API calls go through it**: several route `action`s (e.g. `create-classroom.tsx`, `delete-classroom.tsx`) call `fetch("http://localhost:3000/api/v1/...")` inline instead. When adding new mutations, prefer extending `db.ts` for consistency rather than adding another inline fetch.
 - `app/lib/types.ts` defines frontend-side `Student`/`Classroom` types independently from the Rust models/schemas — keep them in sync manually when the API shape changes.
 - UI components in `app/components/ui/` are shadcn-generated (style `base-rhea`, Tailwind v4, path aliases configured in `components.json` — `~/components`, `~/lib`, `~/hooks`, etc., matching the `~/*` → `./app/*` tsconfig path). Use the shadcn CLI conventions (Base UI primitives via `render` prop, e.g. `<Button render={<Link .../>} />`) rather than hand-rolling new primitives.
-- `app/root.tsx` defines the document `Layout`, a `HydrateFallback` spinner, and a top-level `ErrorBoundary`; theme is currently hardcoded to `"light"` even though a `ThemeProvider`/`theme-toggle` exist.
+- `app/root.tsx` defines the document `Layout`, a `HydrateFallback` spinner, and a top-level `ErrorBoundary`; theme is currently hardcoded to `"light"` even though a `ThemeProvider`/`theme-toggle` exist. The root layout (`App`) is a `h-dvh overflow-hidden` flex column (nav `shrink-0`, routed content `flex-1 min-h-0`) so that pages needing full-height layout (like the seating chart) can stretch to the bottom of the window without producing a page-level scrollbar — extend that `flex-1 min-h-0` chain (it must be unbroken at every nesting level, since a flex item's default `min-height: auto` otherwise lets its content force it taller than available space) rather than introducing a second height strategy.
+- The classroom detail page (`app/routes/classrooms/classroom.tsx`) implements an interactive seating chart: tables and student chips are draggable/droppable via `@dnd-kit/react` (`DragDropProvider`/`useDraggable`/`useDroppable`, discriminated by a `SeatingChartActionData` payload's `kind`), with table positions snapped to a grid via `@dnd-kit/abstract`'s `SnapModifier` — the grid size is the `GRID_STEP` constant exported from `app/routes/classrooms/seating-chart.state.ts`, also used to draw the matching dot-grid background, so the two can't drift apart. All seating-chart state (table positions/seat counts, seat↔student assignments) lives in a `useReducer` backed by `seatingChartReducer` in that same file. Note `SnapModifier` only snaps the drag *delta*, not the absolute position — anything that sets a table's initial position (like the `createTable` cascade for newly-added tables) must snap itself to `GRID_STEP`, or it silently stays off-grid forever (dragging only ever adds already-aligned deltas on top of it).
+- This `{route}.state.ts` colocated-module pattern (pure types/reducer/helper functions, no React) is the template for any other local-only, non-persisted interactive UI state — keep it decoupled from `app/lib/db.ts`/`types.ts`, which model actual API-backed shapes, since mixing the two would misleadingly imply the local state is persisted.
 
 ## Testing
 
@@ -83,8 +87,9 @@ Four tables: `classrooms`, `students`, `tables`, `seats`. Students optionally re
 ### Frontend (`app/routes/**/*.test.ts`)
 
 - Vitest, configured via a dedicated `vitest.config.ts` at the repo root rather than extending `vite.config.ts` (whose `reactRouter()` plugin does SSR/route-manifest work that isn't needed for plain function tests), plus `vite-tsconfig-paths` for the `~/*` alias.
-- Scope is loader/action logic only, not component rendering — no `@testing-library/react`, `jsdom`, or MSW. Tests call the exported `action`/`loader` functions directly with a constructed `Request`/`params`, mocking `fetch` via `vi.stubGlobal("fetch", vi.fn())` and resolving real `Response` objects (matches `db.ts`'s `response.ok`/`.json()` usage).
-- Colocated as `*.test.ts` next to each route file, e.g. `app/routes/students/create-student.test.ts`.
+- Scope is route loader/action logic and colocated pure state modules — not component rendering — no `@testing-library/react`, `jsdom`, or MSW (`vitest.config.ts` uses `environment: "node"`). Route tests call the exported `action`/`loader` functions directly with a constructed `Request`/`params`, mocking `fetch` via `vi.stubGlobal("fetch", vi.fn())` and resolving real `Response` objects (matches `db.ts`'s `response.ok`/`.json()` usage); for a `loader` made of parallel fetches (e.g. `Promise.all([...])`), `mockResolvedValueOnce` calls queue in *call order*, which is deterministic even though the underlying promises resolve out of order.
+- Non-route pure-logic modules (e.g. `seating-chart.state.ts`'s reducer/helpers) are tested directly as plain functions — no fetch mocking or route-args scaffolding needed, just call them.
+- Colocated as `*.test.ts` next to the file under test, e.g. `app/routes/students/create-student.test.ts` (action), `app/routes/classrooms/classroom.test.ts` (loader), `app/routes/classrooms/seating-chart.state.test.ts` (pure reducer/helpers).
 
 ## CI (`.github/workflows/`)
 
