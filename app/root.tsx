@@ -23,20 +23,33 @@ export function HydrateFallback() {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const theme = "light"
-
   return (
-    <html lang="en" className={theme}>
+    <html lang="en" suppressHydrationWarning>
       <head>
+        {/* Must stay in sync with ThemeProvider's logic below. Runs before render to avoid a light->dark flash on load. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function () {
+              try {
+                var storageKey = "vite-ui-theme";
+                var resolved = localStorage.getItem(storageKey) || "light";
+                if (resolved === "system") {
+                  resolved = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+                }
+                document.documentElement.classList.remove("light", "dark");
+                document.documentElement.classList.add(resolved);
+                document.documentElement.style.colorScheme = resolved;
+              } catch (e) {}
+            })();`,
+          }}
+        />
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
       </head>
       <body>
-        <ThemeProvider defaultTheme={theme} storageKey="vite-ui-theme">
-          {children}
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
