@@ -46,9 +46,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <div className="px-16 py-8">
-      <Navbar />
-      <Outlet />
+    <div className="flex h-dvh flex-col overflow-hidden px-16 py-8">
+      <div className="shrink-0">
+        <Navbar />
+      </div>
+      <div className="min-h-0 flex-1">
+        <Outlet />
+      </div>
     </div>
   )
 }
