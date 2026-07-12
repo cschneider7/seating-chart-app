@@ -59,7 +59,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         )
         .route(
             "/api/v1/tables/{table_id}",
-            patch(handlers::table::get_table_handler),
+            get(handlers::table::get_table_handler),
         )
         .route(
             "/api/v1/tables/{table_id}",
@@ -79,7 +79,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         )
         .route(
             "/api/v1/seats/{seat_id}",
-            patch(handlers::seat::get_seat_handler),
+            get(handlers::seat::get_seat_handler),
         )
         .route(
             "/api/v1/seats/{seat_id}",
