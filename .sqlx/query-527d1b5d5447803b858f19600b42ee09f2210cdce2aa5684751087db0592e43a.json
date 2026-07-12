@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM students WHERE id = $1",
+  "query": "SELECT * FROM tables WHERE classroom_id = $1 ORDER BY id",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "students",
+            "table": "tables",
             "name": "id"
           }
         }
@@ -20,40 +20,51 @@
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "students",
+            "table": "tables",
             "name": "classroom_id"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "student_id",
-        "type_info": "Int4",
+        "name": "seat_count",
+        "type_info": "Int2",
         "origin": {
           "Table": {
-            "table": "students",
-            "name": "student_id"
+            "table": "tables",
+            "name": "seat_count"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "name",
-        "type_info": "Text",
+        "name": "x_pos",
+        "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "students",
-            "name": "name"
+            "table": "tables",
+            "name": "x_pos"
           }
         }
       },
       {
         "ordinal": 4,
+        "name": "y_pos",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tables",
+            "name": "y_pos"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "created_time",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
-            "table": "students",
+            "table": "tables",
             "name": "created_time"
           }
         }
@@ -66,11 +77,12 @@
     },
     "nullable": [
       false,
-      true,
+      false,
+      false,
       false,
       false,
       true
     ]
   },
-  "hash": "621ba2fd1ee92b09aad892891a1a0dafc21780f41e1a93cc81317948a79f6838"
+  "hash": "527d1b5d5447803b858f19600b42ee09f2210cdce2aa5684751087db0592e43a"
 }

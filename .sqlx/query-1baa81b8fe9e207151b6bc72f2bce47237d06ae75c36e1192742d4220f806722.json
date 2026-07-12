@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM students WHERE id = $1",
+  "query": "UPDATE seats SET\n            student_id = $1\n        WHERE id = $2\n        RETURNING *",
   "describe": {
     "columns": [
       {
@@ -9,41 +9,41 @@
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "students",
+            "table": "seats",
             "name": "id"
           }
         }
       },
       {
         "ordinal": 1,
-        "name": "classroom_id",
+        "name": "table_id",
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "students",
-            "name": "classroom_id"
+            "table": "seats",
+            "name": "table_id"
           }
         }
       },
       {
         "ordinal": 2,
         "name": "student_id",
-        "type_info": "Int4",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "students",
+            "table": "seats",
             "name": "student_id"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "name",
-        "type_info": "Text",
+        "name": "position",
+        "type_info": "Int2",
         "origin": {
           "Table": {
-            "table": "students",
-            "name": "name"
+            "table": "seats",
+            "name": "position"
           }
         }
       },
@@ -53,7 +53,7 @@
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
-            "table": "students",
+            "table": "seats",
             "name": "created_time"
           }
         }
@@ -61,16 +61,17 @@
     ],
     "parameters": {
       "Left": [
+        "Uuid",
         "Uuid"
       ]
     },
     "nullable": [
       false,
-      true,
       false,
+      true,
       false,
       true
     ]
   },
-  "hash": "621ba2fd1ee92b09aad892891a1a0dafc21780f41e1a93cc81317948a79f6838"
+  "hash": "1baa81b8fe9e207151b6bc72f2bce47237d06ae75c36e1192742d4220f806722"
 }

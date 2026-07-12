@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT * FROM students WHERE id = $1",
+  "query": "DELETE FROM seats WHERE id = $1 RETURNING *",
   "describe": {
     "columns": [
       {
@@ -9,41 +9,41 @@
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "students",
+            "table": "seats",
             "name": "id"
           }
         }
       },
       {
         "ordinal": 1,
-        "name": "classroom_id",
+        "name": "table_id",
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "students",
-            "name": "classroom_id"
+            "table": "seats",
+            "name": "table_id"
           }
         }
       },
       {
         "ordinal": 2,
         "name": "student_id",
-        "type_info": "Int4",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "students",
+            "table": "seats",
             "name": "student_id"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "name",
-        "type_info": "Text",
+        "name": "position",
+        "type_info": "Int2",
         "origin": {
           "Table": {
-            "table": "students",
-            "name": "name"
+            "table": "seats",
+            "name": "position"
           }
         }
       },
@@ -53,7 +53,7 @@
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
-            "table": "students",
+            "table": "seats",
             "name": "created_time"
           }
         }
@@ -66,11 +66,11 @@
     },
     "nullable": [
       false,
-      true,
       false,
+      true,
       false,
       true
     ]
   },
-  "hash": "621ba2fd1ee92b09aad892891a1a0dafc21780f41e1a93cc81317948a79f6838"
+  "hash": "5dd6eb03aade8948bb344a5739649ce5f9656b1d01c37cb69e95faaad4d33660"
 }

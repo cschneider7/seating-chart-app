@@ -12,10 +12,9 @@ pub struct ClassroomModel {
 #[derive(Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct StudentModel {
     pub id: Uuid,
+    pub classroom_id: Option<Uuid>,
     pub student_id: i32,
     pub name: String,
-    pub classroom_id: Option<Uuid>,
-    pub seat_id: Option<Uuid>,
     pub created_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -24,7 +23,9 @@ pub struct StudentModel {
 pub struct TableModel {
     pub id: Uuid,
     pub classroom_id: Uuid,
-    pub max_seats: i16,
+    pub seat_count: i16,
+    pub x_pos: i32,
+    pub y_pos: i32,
     pub created_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
@@ -33,6 +34,7 @@ pub struct TableModel {
 pub struct SeatModel {
     pub id: Uuid,
     pub table_id: Uuid,
+    pub student_id: Option<Uuid>,
     pub position: i16,
     pub created_time: Option<chrono::DateTime<chrono::Utc>>,
 }

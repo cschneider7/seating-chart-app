@@ -25,38 +25,46 @@ pub struct UpdateClassroomSchema {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StudentSchema {
+    pub classroom_id: Option<Uuid>,
     pub student_id: i32,
     pub name: String,
-    pub classroom_id: Option<Uuid>,
-    pub seat_id: Option<Uuid>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateStudentSchema {
-    pub student_id: Option<i32>,
-    pub name: Option<String>,
     #[serde(default, deserialize_with = "deserialize_some")]
     pub classroom_id: Option<Option<Uuid>>,
-    #[serde(default, deserialize_with = "deserialize_some")]
-    pub seat_id: Option<Option<Uuid>>,
+    pub student_id: Option<i32>,
+    pub name: Option<String>,
 }
 
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TableSchema {
     pub classroom_id: Uuid,
-    pub max_seats: i16,
+    pub seat_count: i16,
+    pub x_pos: i32,
+    pub y_pos: i32,
 }
 
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateTableSchema {
-    pub max_seats: i16,
+    pub seat_count: Option<i16>,
+    pub x_pos: Option<i32>,
+    pub y_pos: Option<i32>,
 }
 
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SeatSchema {
     pub table_id: Uuid,
+    pub student_id: Option<Uuid>,
     pub position: i16,
+}
+
+#[allow(dead_code)]
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UpdateSeatSchema {
+    pub student_id: Option<Uuid>,
 }

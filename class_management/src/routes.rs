@@ -18,15 +18,15 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             post(handlers::student::create_student_handler),
         )
         .route(
-            "/api/v1/students/{id}",
+            "/api/v1/students/{student_id}",
             get(handlers::student::get_student_handler),
         )
         .route(
-            "/api/v1/students/{id}",
+            "/api/v1/students/{student_id}",
             patch(handlers::student::update_student_handler),
         )
         .route(
-            "/api/v1/students/{id}",
+            "/api/v1/students/{student_id}",
             delete(handlers::student::delete_student_handler),
         )
         .route(
@@ -38,16 +38,56 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             post(handlers::classroom::create_classroom_handler),
         )
         .route(
-            "/api/v1/classrooms/{id}",
+            "/api/v1/classrooms/{classroom_id}",
             get(handlers::classroom::get_classroom_handler),
         )
         .route(
-            "/api/v1/classrooms/{id}",
+            "/api/v1/classrooms/{classroom_id}",
             patch(handlers::classroom::update_classroom_handler),
         )
         .route(
-            "/api/v1/classrooms/{id}",
+            "/api/v1/classrooms/{classroom_id}",
             delete(handlers::classroom::delete_classroom_handler),
+        )
+        .route(
+            "/api/v1/classrooms/{classroom_id}/tables",
+            get(handlers::table::get_classroom_tables_handler),
+        )
+        .route(
+            "/api/v1/classrooms/{classroom_id}/tables",
+            post(handlers::table::create_classroom_table_handler),
+        )
+        .route(
+            "/api/v1/tables/{table_id}",
+            patch(handlers::table::get_table_handler),
+        )
+        .route(
+            "/api/v1/tables/{table_id}",
+            patch(handlers::table::update_table_handler),
+        )
+        .route(
+            "/api/v1/tables/{table_id}",
+            delete(handlers::table::delete_table_handler),
+        )
+        .route(
+            "/api/v1/tables/{table_id}/seats",
+            get(handlers::seat::get_table_seats_handler),
+        )
+        .route(
+            "/api/v1/tables/{table_id}/seats",
+            post(handlers::seat::create_table_seat_handler),
+        )
+        .route(
+            "/api/v1/seats/{seat_id}",
+            patch(handlers::seat::get_seat_handler),
+        )
+        .route(
+            "/api/v1/seats/{seat_id}",
+            patch(handlers::seat::update_seat_handler),
+        )
+        .route(
+            "/api/v1/seats/{seat_id}",
+            delete(handlers::seat::delete_seat_handler),
         )
         .with_state(app_state)
 }
