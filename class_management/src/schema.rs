@@ -66,5 +66,6 @@ pub struct SeatSchema {
 #[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateSeatSchema {
-    pub student_id: Option<Uuid>,
+    #[serde(default, deserialize_with = "deserialize_some")]
+    pub student_id: Option<Option<Uuid>>,
 }
