@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest"
-import type { Student } from "~/lib/types"
+import type { Student, Table } from "~/lib/types"
 import {
-  GRID_STEP,
   createTable,
   getUnassignedStudents,
   seatingChartReducer,
   type SeatingChartState,
-  type Table,
 } from "./seating-chart.state"
 
 function makeStudent(id: string): Student {
@@ -14,7 +12,7 @@ function makeStudent(id: string): Student {
 }
 
 function makeTable(overrides: Partial<Table> = {}): Table {
-  return { id: "table-1", seatCount: 4, x: 0, y: 0, ...overrides }
+  return { id: "table-1", seat_count: 4, x_pos: 0, y_pos: 0, ...overrides }
 }
 
 function makeState(
