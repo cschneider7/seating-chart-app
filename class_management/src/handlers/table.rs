@@ -41,8 +41,7 @@ pub async fn get_classroom_tables_handler(
     Ok((StatusCode::OK, Json(response)))
 }
 
-pub async fn create_classroom_table_handler(
-    Path(classroom_id): Path<Uuid>,
+pub async fn create_table_handler(
     State(data): State<Arc<AppState>>,
     Json(body): Json<TableSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -56,7 +55,7 @@ pub async fn create_classroom_table_handler(
         )
         VALUES ($1, $2, $3, $4)
         RETURNING *"#,
-        &classroom_id,
+        &body.classroom_id,
         body.seat_count,
         body.x_pos,
         body.y_pos,
@@ -281,7 +280,7 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "../migrations")]
-    async fn create_classroom_table_success(pool: sqlx::PgPool) -> sqlx::Result<()> {
+    async fn create_table_success(pool: sqlx::PgPool) -> sqlx::Result<()> {
         let classroom = insert_classroom(&pool, "Math 2", 3).await;
         let app = app(pool);
 
@@ -292,11 +291,7 @@ mod tests {
             "y_pos": 20,
         });
         let response = app
-            .oneshot(json_request(
-                "POST",
-                &format!("/api/v1/classrooms/{}/tables", classroom.id),
-                body,
-            ))
+            .oneshot(json_request("POST", "/api/v1/tables", body))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -311,9 +306,7 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "../migrations")]
-    async fn create_classroom_table_rejects_nonexistent_classroom_id(
-        pool: sqlx::PgPool,
-    ) -> sqlx::Result<()> {
+    async fn create_table_rejects_nonexistent_classroom_id(pool: sqlx::PgPool) -> sqlx::Result<()> {
         let app = app(pool);
         let fake_classroom_id = Uuid::new_v4();
         let body = json!({
@@ -324,11 +317,7 @@ mod tests {
         });
 
         let response = app
-            .oneshot(json_request(
-                "POST",
-                &format!("/api/v1/classrooms/{}/tables", fake_classroom_id),
-                body,
-            ))
+            .oneshot(json_request("POST", "/api/v1/tables", body))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);

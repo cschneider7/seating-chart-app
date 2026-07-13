@@ -41,8 +41,7 @@ pub async fn get_table_seats_handler(
     Ok((StatusCode::OK, Json(response)))
 }
 
-pub async fn create_table_seat_handler(
-    Path(table_id): Path<Uuid>,
+pub async fn create_seat_handler(
     State(data): State<Arc<AppState>>,
     Json(body): Json<SeatSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
@@ -55,7 +54,7 @@ pub async fn create_table_seat_handler(
         )
         VALUES ($1, $2, $3)
         RETURNING *"#,
-        &table_id,
+        &body.table_id,
         body.student_id.as_ref(),
         body.position,
     )
@@ -308,17 +307,13 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "../migrations")]
-    async fn create_table_seat_success(pool: sqlx::PgPool) -> sqlx::Result<()> {
+    async fn create_seat_success(pool: sqlx::PgPool) -> sqlx::Result<()> {
         let table = setup_table(&pool).await;
         let app = app(pool);
 
         let body = json!({"table_id": table.id, "student_id": null, "position": 1});
         let response = app
-            .oneshot(json_request(
-                "POST",
-                &format!("/api/v1/tables/{}/seats", table.id),
-                body,
-            ))
+            .oneshot(json_request("POST", "/api/v1/seats", body))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -332,18 +327,14 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "../migrations")]
-    async fn create_table_seat_with_student_success(pool: sqlx::PgPool) -> sqlx::Result<()> {
+    async fn create_seat_with_student_success(pool: sqlx::PgPool) -> sqlx::Result<()> {
         let table = setup_table(&pool).await;
         let student = insert_student(&pool, 1, "Bob").await;
         let app = app(pool);
 
         let body = json!({"table_id": table.id, "student_id": student.id, "position": 1});
         let response = app
-            .oneshot(json_request(
-                "POST",
-                &format!("/api/v1/tables/{}/seats", table.id),
-                body,
-            ))
+            .oneshot(json_request("POST", "/api/v1/seats", body))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::CREATED);
@@ -355,19 +346,13 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "../migrations")]
-    async fn create_table_seat_rejects_nonexistent_table_id(
-        pool: sqlx::PgPool,
-    ) -> sqlx::Result<()> {
+    async fn create_seat_rejects_nonexistent_table_id(pool: sqlx::PgPool) -> sqlx::Result<()> {
         let app = app(pool);
         let fake_table_id = Uuid::new_v4();
 
         let body = json!({"table_id": fake_table_id, "student_id": null, "position": 1});
         let response = app
-            .oneshot(json_request(
-                "POST",
-                &format!("/api/v1/tables/{}/seats", fake_table_id),
-                body,
-            ))
+            .oneshot(json_request("POST", "/api/v1/seats", body))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -376,20 +361,14 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "../migrations")]
-    async fn create_table_seat_rejects_nonexistent_student_id(
-        pool: sqlx::PgPool,
-    ) -> sqlx::Result<()> {
+    async fn create_seat_rejects_nonexistent_student_id(pool: sqlx::PgPool) -> sqlx::Result<()> {
         let table = setup_table(&pool).await;
         let app = app(pool);
         let fake_student_id = Uuid::new_v4();
 
         let body = json!({"table_id": table.id, "student_id": fake_student_id, "position": 1});
         let response = app
-            .oneshot(json_request(
-                "POST",
-                &format!("/api/v1/tables/{}/seats", table.id),
-                body,
-            ))
+            .oneshot(json_request("POST", "/api/v1/seats", body))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -398,9 +377,7 @@ mod tests {
     }
 
     #[sqlx::test(migrations = "../migrations")]
-    async fn create_table_seat_rejects_duplicate_student_id(
-        pool: sqlx::PgPool,
-    ) -> sqlx::Result<()> {
+    async fn create_seat_rejects_duplicate_student_id(pool: sqlx::PgPool) -> sqlx::Result<()> {
         let table = setup_table(&pool).await;
         let student = insert_student(&pool, 1, "Bob").await;
         insert_seat(&pool, table.id, Some(student.id), 1).await;
@@ -408,11 +385,7 @@ mod tests {
 
         let body = json!({"table_id": table.id, "student_id": student.id, "position": 2});
         let response = app
-            .oneshot(json_request(
-                "POST",
-                &format!("/api/v1/tables/{}/seats", table.id),
-                body,
-            ))
+            .oneshot(json_request("POST", "/api/v1/seats", body))
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);

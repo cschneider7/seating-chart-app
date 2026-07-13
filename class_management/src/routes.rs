@@ -54,8 +54,8 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             get(handlers::table::get_classroom_tables_handler),
         )
         .route(
-            "/api/v1/classrooms/{classroom_id}/tables",
-            post(handlers::table::create_classroom_table_handler),
+            "/api/v1/tables",
+            post(handlers::table::create_table_handler),
         )
         .route(
             "/api/v1/tables/{table_id}",
@@ -73,10 +73,7 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             "/api/v1/tables/{table_id}/seats",
             get(handlers::seat::get_table_seats_handler),
         )
-        .route(
-            "/api/v1/tables/{table_id}/seats",
-            post(handlers::seat::create_table_seat_handler),
-        )
+        .route("/api/v1/seats", post(handlers::seat::create_seat_handler))
         .route(
             "/api/v1/seats/{seat_id}",
             get(handlers::seat::get_seat_handler),
