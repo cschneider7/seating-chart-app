@@ -1,17 +1,19 @@
 import * as z from "zod"
 
-export const createStudentFormSchema = z.object({
+const MAX_SEATS = 15
+
+export const createStudentSchema = z.object({
+  classroom_id: z.uuidv4().nullable(),
   student_id: z.coerce.number<number>().int().positive(),
   name: z
     .string()
     .trim()
     .min(1, "Name must be at least 0 characters.")
     .max(100, "Name must be at most 100 characters."),
-  classroom_id: z.uuidv4().nullable(),
-  seat_id: z.uuidv4().nullable(),
 })
 
-export const editStudentFormSchema = z.object({
+export const editStudentSchema = z.object({
+  classroom_id: z.uuidv4().nullish(),
   student_id: z.optional(
     z.coerce
       .number<number>("ID must be a number.")
@@ -25,11 +27,9 @@ export const editStudentFormSchema = z.object({
       .min(1, "Name must be at least 0 characters.")
       .max(100, "Name must be at most 100 characters.")
   ),
-  classroom_id: z.nullish(z.uuidv4()),
-  seat_id: z.nullish(z.uuidv4()),
 })
 
-export const createClassroomFormSchema = z.object({
+export const createClassroomSchema = z.object({
   period: z.coerce.number<number>().int().positive(),
   subject: z
     .string()
@@ -38,7 +38,7 @@ export const createClassroomFormSchema = z.object({
     .max(50, "Subject must be at most 30 characters."),
 })
 
-export const editClassroomFormSchema = z.object({
+export const editClassroomSchema = z.object({
   period: z.optional(z.coerce.number<number>().int().positive()),
   subject: z.optional(
     z
@@ -47,4 +47,27 @@ export const editClassroomFormSchema = z.object({
       .min(1, "Subject must be at least 0 characters.")
       .max(50, "Subject must be at most 30 characters.")
   ),
+})
+
+export const createTableSchema = z.object({
+  classroom_id: z.uuidv4(),
+  seat_count: z.int().positive().max(MAX_SEATS),
+  x_pos: z.int(),
+  y_pos: z.int(),
+})
+
+export const editTableSchema = z.object({
+  seat_count: z.optional(z.int().positive().max(MAX_SEATS)),
+  x_pos: z.optional(z.int()),
+  y_pos: z.optional(z.int()),
+})
+
+export const createSeatSchema = z.object({
+  table_id: z.uuidv4(),
+  student_id: z.uuidv4().nullable(),
+  position: z.int().positive().max(MAX_SEATS),
+})
+
+export const editSeatSchema = z.object({
+  student_id: z.uuidv4().nullish(),
 })

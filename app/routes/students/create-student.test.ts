@@ -5,7 +5,6 @@ const validPayload = {
   student_id: 123,
   name: "Bob Burger",
   classroom_id: null,
-  seat_id: null,
 }
 
 function actionArgs(body: unknown) {
@@ -57,7 +56,6 @@ describe("create-student action", () => {
         student_id: -1,
         name: "",
         classroom_id: null,
-        seat_id: null,
       })
     )
 

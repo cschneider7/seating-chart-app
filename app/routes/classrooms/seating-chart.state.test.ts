@@ -10,7 +10,7 @@ import {
 } from "./seating-chart.state"
 
 function makeStudent(id: string): Student {
-  return { id, student_id: 1, name: id, classroom_id: "c1", seat_id: null }
+  return { id, student_id: 1, name: id, classroom_id: "c1" }
 }
 
 function makeTable(overrides: Partial<Table> = {}): Table {

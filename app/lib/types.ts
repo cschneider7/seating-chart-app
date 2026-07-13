@@ -5,7 +5,6 @@ export interface Student {
   student_id: number
   name: string
   classroom_id: string | null
-  seat_id: string | null
 }
 
 export interface Classroom {
@@ -13,5 +12,18 @@ export interface Classroom {
   period: number
   subject: string
 }
-export type ClassroomConfig = Omit<Classroom, "id">
-export type UpdateClassroomConfig = Partial<ClassroomConfig>
+
+export interface Table {
+  id: string
+  classroom_id: string
+  seat_count: number
+  x_pos: number
+  y_pos: number
+}
+
+export interface Seat {
+  id: string
+  table_id: string
+  student_id: string | null
+  position: number
+}

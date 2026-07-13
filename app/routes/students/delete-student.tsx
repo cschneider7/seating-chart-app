@@ -1,9 +1,12 @@
 import { redirect } from "react-router"
+import { deleteStudent } from "~/lib/db"
 import type { Route } from "./+types/delete-student"
 
 export async function action({ params }: Route.ClientLoaderArgs) {
-  await fetch(`http://localhost:3000/api/v1/students/${params.studentId}`, {
-    method: "DELETE",
-  })
+  try {
+    await deleteStudent(params.studentId)
+  } catch {
+    // Redirect regardless of whether the delete succeeded.
+  }
   return redirect("/students")
 }

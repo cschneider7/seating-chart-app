@@ -38,21 +38,18 @@ describe("classroom loader", () => {
         student_id: 1,
         name: "In this classroom",
         classroom_id: classroomId,
-        seat_id: null,
       },
       {
         id: "s2",
         student_id: 2,
         name: "In another classroom",
         classroom_id: "other-classroom",
-        seat_id: null,
       },
       {
         id: "s3",
         student_id: 3,
         name: "Unassigned to any classroom",
         classroom_id: null,
-        seat_id: null,
       },
     ]
 

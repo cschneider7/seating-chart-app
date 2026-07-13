@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "~/components/ui/select"
 import { createClassroom } from "~/lib/db"
-import { createClassroomFormSchema } from "~/lib/schemas"
+import { createClassroomSchema } from "~/lib/schemas"
 import type { Route } from "./+types/create-classroom"
 
 const periodOptions = Array.from({ length: 9 }, (_, i) => ({
@@ -37,7 +37,7 @@ const periodOptions = Array.from({ length: 9 }, (_, i) => ({
 
 export async function action({ request }: Route.ActionArgs) {
   const rawData = await request.json()
-  const result = createClassroomFormSchema.safeParse(rawData)
+  const result = createClassroomSchema.safeParse(rawData)
 
   if (!result.success) {
     return z.treeifyError(result.error)
@@ -50,14 +50,14 @@ export async function action({ request }: Route.ActionArgs) {
 export default function Component() {
   const submit = useSubmit()
 
-  const form = useForm<z.infer<typeof createClassroomFormSchema>>({
-    resolver: zodResolver(createClassroomFormSchema),
+  const form = useForm<z.infer<typeof createClassroomSchema>>({
+    resolver: zodResolver(createClassroomSchema),
     defaultValues: {
       subject: "",
     },
   })
 
-  const onSubmit = (data: z.infer<typeof createClassroomFormSchema>) =>
+  const onSubmit = (data: z.infer<typeof createClassroomSchema>) =>
     submit(data, { method: "post", encType: "application/json" })
 
   return (
