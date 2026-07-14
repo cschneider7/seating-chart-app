@@ -12,8 +12,15 @@ use uuid::Uuid;
 use crate::{
     AppState,
     model::ClassroomModel,
-    schema::{ClassroomSchema, UpdateClassroomSchema},
+    schema::{ClassroomSchema, SeatingChartSchema, UpdateClassroomSchema},
 };
+
+#[derive(serde::Serialize)]
+struct SeatAssignmentRow {
+    table_id: Uuid,
+    position: i16,
+    student_id: Uuid,
+}
 
 pub async fn classroom_list_handler(
     State(data): State<Arc<AppState>>,
@@ -188,8 +195,128 @@ pub async fn delete_classroom_handler(
     })?;
 
     let response = json!({
-        "message": "Classroom deleted successfully",
         "data": json!(classroom),
+    });
+    Ok((StatusCode::OK, Json(response)))
+}
+
+pub async fn update_seating_chart_handler(
+    Path(classroom_id): Path<Uuid>,
+    State(data): State<Arc<AppState>>,
+    Json(body): Json<SeatingChartSchema>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let mut tx = data.db.begin().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "message": format!("{:?}", e)
+            })),
+        )
+    })?;
+
+    sqlx::query!(
+        r#"DELETE FROM tables WHERE classroom_id = $1"#,
+        &classroom_id
+    )
+    .execute(&mut *tx)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "message": format!("{:?}", e)
+            })),
+        )
+    })?;
+
+    for table in &body.tables {
+        let seat_count = table.seats.len() as i16;
+        let table_id = sqlx::query_scalar!(
+            r#"INSERT INTO tables (classroom_id, seat_count, x_pos, y_pos)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id"#,
+            &classroom_id,
+            seat_count,
+            table.x_pos,
+            table.y_pos,
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "message": format!("{:?}", e)
+                })),
+            )
+        })?;
+
+        for (position, student_id) in table.seats.iter().enumerate() {
+            sqlx::query!(
+                r#"INSERT INTO seats (table_id, student_id, position)
+                VALUES ($1, $2, $3)"#,
+                table_id,
+                student_id.as_ref(),
+                position as i16,
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "message": format!("{:?}", e)
+                    })),
+                )
+            })?;
+        }
+    }
+
+    tx.commit().await.map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "message": format!("{:?}", e)
+            })),
+        )
+    })?;
+
+    let response = json!({
+        "message": "Seating chart updated successfully"
+    });
+    Ok((StatusCode::OK, Json(response)))
+}
+
+pub async fn get_seating_chart_handler(
+    Path(classroom_id): Path<Uuid>,
+    State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let assignments = sqlx::query_as!(
+        SeatAssignmentRow,
+        r#"SELECT
+            t.id as "table_id!",
+            s.position,
+            s.student_id as "student_id!"
+        FROM tables t
+        INNER JOIN seats s ON (t.id = s.table_id)
+        WHERE t.classroom_id = $1 AND s.student_id IS NOT NULL
+        ORDER BY t.id, s.position
+        "#,
+        &classroom_id
+    )
+    .fetch_all(&data.db)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "message": format!("{:?}", e)
+            })),
+        )
+    })?;
+
+    let response = json!({
+        "data": json!(assignments)
     });
     Ok((StatusCode::OK, Json(response)))
 }
@@ -210,7 +337,10 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::routes::create_router;
+    use crate::{
+        model::{SeatModel, TableModel},
+        routes::create_router,
+    };
 
     fn app(pool: sqlx::PgPool) -> Router {
         create_router(Arc::new(AppState { db: pool }))
@@ -249,6 +379,75 @@ mod tests {
             id
         )
         .fetch_optional(pool)
+        .await
+        .unwrap()
+    }
+
+    async fn insert_table(
+        pool: &sqlx::PgPool,
+        classroom_id: Uuid,
+        seat_count: i16,
+        x_pos: i32,
+        y_pos: i32,
+    ) -> TableModel {
+        sqlx::query_as!(
+            TableModel,
+            r#"INSERT INTO tables (classroom_id, seat_count, x_pos, y_pos)
+            VALUES ($1, $2, $3, $4)
+            RETURNING *"#,
+            classroom_id,
+            seat_count,
+            x_pos,
+            y_pos
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    async fn insert_seat(
+        pool: &sqlx::PgPool,
+        table_id: Uuid,
+        student_id: Option<Uuid>,
+        position: i16,
+    ) -> SeatModel {
+        sqlx::query_as!(
+            SeatModel,
+            r#"INSERT INTO seats (table_id, student_id, position)
+            VALUES ($1, $2, $3)
+            RETURNING *"#,
+            table_id,
+            student_id,
+            position
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    async fn insert_student(pool: &sqlx::PgPool, student_id: i32, name: &str) -> Uuid {
+        sqlx::query_scalar!(
+            r#"INSERT INTO students (classroom_id, student_id, name)
+            VALUES (NULL, $1, $2)
+            RETURNING id"#,
+            student_id,
+            name
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    async fn fetch_tables_for_classroom(
+        pool: &sqlx::PgPool,
+        classroom_id: Uuid,
+    ) -> Vec<TableModel> {
+        sqlx::query_as!(
+            TableModel,
+            r#"SELECT * FROM tables WHERE classroom_id = $1 ORDER BY x_pos"#,
+            classroom_id
+        )
+        .fetch_all(pool)
         .await
         .unwrap()
     }
@@ -359,7 +558,6 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
-        assert_eq!(json["message"], "Classroom deleted successfully");
         assert_eq!(json["data"]["id"], existing.id.to_string());
 
         assert!(fetch_classroom(&pool, existing.id).await.is_none());
@@ -385,6 +583,139 @@ mod tests {
 
         let json = body_json(response).await;
         assert!(json["message"].is_string());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn update_seating_chart_replaces_existing_tables_and_seats(
+        pool: sqlx::PgPool,
+    ) -> sqlx::Result<()> {
+        let classroom = insert_classroom(&pool, "Math 2", 3).await;
+        let old_table = insert_table(&pool, classroom.id, 4, 0, 0).await;
+        insert_seat(&pool, old_table.id, None, 0).await;
+        let app = app(pool.clone());
+
+        let student_id = insert_student(&pool, 1, "Bob").await;
+        let body = json!({
+            "tables": [
+                { "x_pos": 20, "y_pos": 40, "seats": [student_id, null] },
+            ]
+        });
+        let response = app
+            .oneshot(json_request(
+                "PUT",
+                &format!("/api/v1/classrooms/{}/seating-chart", classroom.id),
+                body,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let tables = fetch_tables_for_classroom(&pool, classroom.id).await;
+        assert_eq!(tables.len(), 1);
+        assert_ne!(tables[0].id, old_table.id);
+        assert_eq!(tables[0].seat_count, 2);
+        assert_eq!(tables[0].x_pos, 20);
+        assert_eq!(tables[0].y_pos, 40);
+
+        let seats = sqlx::query_as!(
+            SeatModel,
+            r#"SELECT * FROM seats WHERE table_id = $1 ORDER BY position"#,
+            tables[0].id
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(seats.len(), 2);
+        assert_eq!(seats[0].position, 0);
+        assert_eq!(seats[0].student_id, Some(student_id));
+        assert_eq!(seats[1].position, 1);
+        assert_eq!(seats[1].student_id, None);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn update_seating_chart_with_no_tables_clears_everything(
+        pool: sqlx::PgPool,
+    ) -> sqlx::Result<()> {
+        let classroom = insert_classroom(&pool, "Math 2", 3).await;
+        insert_table(&pool, classroom.id, 4, 0, 0).await;
+        let app = app(pool.clone());
+
+        let body = json!({ "tables": [] });
+        let response = app
+            .oneshot(json_request(
+                "PUT",
+                &format!("/api/v1/classrooms/{}/seating-chart", classroom.id),
+                body,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        assert!(
+            fetch_tables_for_classroom(&pool, classroom.id)
+                .await
+                .is_empty()
+        );
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn get_seating_chart_returns_only_assigned_seats(pool: sqlx::PgPool) -> sqlx::Result<()> {
+        let classroom = insert_classroom(&pool, "Math 2", 3).await;
+        let table = insert_table(&pool, classroom.id, 4, 0, 0).await;
+        let student_id = insert_student(&pool, 1, "Bob").await;
+        insert_seat(&pool, table.id, Some(student_id), 0).await;
+        insert_seat(&pool, table.id, None, 1).await;
+        let app = app(pool);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/api/v1/classrooms/{}/seating-chart", classroom.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let json = body_json(response).await;
+        let assignments = json["data"].as_array().unwrap();
+        assert_eq!(assignments.len(), 1);
+        assert_eq!(assignments[0]["table_id"], table.id.to_string());
+        assert_eq!(assignments[0]["position"], 0);
+        assert_eq!(assignments[0]["student_id"], student_id.to_string());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn get_seating_chart_with_no_tables_returns_empty_list(
+        pool: sqlx::PgPool,
+    ) -> sqlx::Result<()> {
+        let classroom = insert_classroom(&pool, "Math 2", 3).await;
+        let app = app(pool);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/api/v1/classrooms/{}/seating-chart", classroom.id))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let json = body_json(response).await;
+        assert!(json["data"].as_array().unwrap().is_empty());
 
         Ok(())
     }

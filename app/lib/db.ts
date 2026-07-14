@@ -8,8 +8,15 @@ import {
   editSeatSchema,
   editStudentSchema,
   editTableSchema,
+  seatingChartSchema,
 } from "~/lib/schemas"
-import type { Classroom, Seat, Student, Table } from "~/lib/types"
+import type {
+  Classroom,
+  Seat,
+  SeatAssignment,
+  Student,
+  Table,
+} from "~/lib/types"
 
 export async function getStudent(studentId: string): Promise<Student> {
   const res = await fetch(`http://localhost:3000/api/v1/students/${studentId}`)
@@ -299,4 +306,38 @@ export async function deleteSeat(seatId: string) {
   if (!response.ok) {
     throw new Error("Error deleting seat: " + response.statusText)
   }
+}
+
+export async function updateSeatingChart(
+  classroomId: string,
+  chartInfo: z.infer<typeof seatingChartSchema>
+) {
+  const response = await fetch(
+    `http://localhost:3000/api/v1/classrooms/${classroomId}/seating-chart`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(chartInfo),
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error("Error updating seating chart: " + response.statusText)
+  }
+}
+
+export async function getSeatingChartAssignments(
+  classroomId: string
+): Promise<SeatAssignment[]> {
+  const res = await fetch(
+    `http://localhost:3000/api/v1/classrooms/${classroomId}/seating-chart`
+  )
+  if (!res.ok) {
+    throw new Error(`Error getting seating chart assignments: ", ${res.status}`)
+  }
+
+  const json = await res.json()
+  return json.data
 }

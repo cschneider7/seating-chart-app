@@ -38,7 +38,6 @@ pub struct UpdateStudentSchema {
     pub name: Option<String>,
 }
 
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TableSchema {
     pub classroom_id: Uuid,
@@ -47,7 +46,6 @@ pub struct TableSchema {
     pub y_pos: i32,
 }
 
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateTableSchema {
     pub seat_count: Option<i16>,
@@ -55,7 +53,6 @@ pub struct UpdateTableSchema {
     pub y_pos: Option<i32>,
 }
 
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SeatSchema {
     pub table_id: Uuid,
@@ -63,9 +60,21 @@ pub struct SeatSchema {
     pub position: i16,
 }
 
-#[allow(dead_code)]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct UpdateSeatSchema {
     #[serde(default, deserialize_with = "deserialize_some")]
     pub student_id: Option<Option<Uuid>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SeatingChartTableSchema {
+    pub x_pos: i32,
+    pub y_pos: i32,
+    /// index = position (0-indexed); seat_count is derived from `seats.len()`
+    pub seats: Vec<Option<Uuid>>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SeatingChartSchema {
+    pub tables: Vec<SeatingChartTableSchema>,
 }

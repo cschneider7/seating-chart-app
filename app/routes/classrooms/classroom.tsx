@@ -2,18 +2,31 @@ import { RestrictToWindow } from "@dnd-kit/dom/modifiers"
 import { DragDropProvider } from "@dnd-kit/react"
 import { Plus } from "lucide-react"
 import { useMemo, useReducer, useState } from "react"
+import { useFetcher } from "react-router"
+import * as z from "zod"
 import {
   RosterPanel,
   SeatingChartCanvas,
 } from "~/components/seating-chart-canvas"
 import { Button } from "~/components/ui/button"
-import { getClassroom, getClassroomTables, getStudents } from "~/lib/db"
+import { Spinner } from "~/components/ui/spinner"
+import {
+  getClassroom,
+  getClassroomTables,
+  getSeatingChartAssignments,
+  getStudents,
+  updateSeatingChart,
+} from "~/lib/db"
+import type { seatingChartSchema } from "~/lib/schemas"
 import type { Route } from "./+types/classroom"
 import {
   createTable,
+  getSeatId,
   getUnassignedStudents,
   seatingChartReducer,
+  type SeatAssignments,
   type SeatingChartActionData,
+  type SeatingChartState,
 } from "./seating-chart.state"
 
 export function meta({}: Route.MetaArgs) {
@@ -24,38 +37,65 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ params }: Route.ClientLoaderArgs) {
-  const [classroom, tables, allStudents] = await Promise.all([
+  const [classroom, tables, allStudents, seatAssignments] = await Promise.all([
     getClassroom(params.classroomId),
     getClassroomTables(params.classroomId),
     getStudents(),
+    getSeatingChartAssignments(params.classroomId),
   ])
   const students = allStudents.filter((s) => s.classroom_id === classroom.id)
-  return { classroom, students, tables }
+  const assignments: SeatAssignments = Object.fromEntries(
+    seatAssignments.map(({ table_id, position, student_id }) => [
+      getSeatId(table_id, position),
+      student_id,
+    ])
+  )
+  return { classroom, students, tables, assignments }
+}
+
+export async function action({ params, request }: Route.ActionArgs) {
+  const data: SeatingChartState = await request.json()
+
+  const chart: z.infer<typeof seatingChartSchema> = {
+    tables: data.tables.map((table) => ({
+      x_pos: table.x_pos,
+      y_pos: table.y_pos,
+      seats: Array.from(
+        { length: table.seat_count },
+        (_, seatIndex) =>
+          data.assignments[getSeatId(table.id, seatIndex)] ?? null
+      ),
+    })),
+  }
+
+  await updateSeatingChart(params.classroomId, chart)
+
+  return { ok: true }
 }
 
 export default function Component({ loaderData }: Route.ComponentProps) {
-  const { classroom, students, tables } = loaderData
+  const { classroom, students, tables, assignments } = loaderData
 
   const [editMode, setEditMode] = useState(false)
 
-  const [state, dispatch] = useReducer(seatingChartReducer, {
-    classroomId: classroom.id,
+  const initialChart = {
     tables: tables,
-    assignments: {},
-  })
+    assignments: assignments,
+  }
+  const [chart, dispatch] = useReducer(seatingChartReducer, initialChart)
+  const fetcher = useFetcher()
 
   const studentsById = useMemo(
     () => new Map(students.map((s) => [s.id, s])),
     [students]
   )
   const unassigned = useMemo(
-    () => getUnassignedStudents(students, state.assignments),
-    [students, state.assignments]
+    () => getUnassignedStudents(students, chart.assignments),
+    [students, chart.assignments]
   )
 
   function handleSave() {
-    // TODO
-    dispatch({ type: "COMMIT_CHANGES" })
+    fetcher.submit(chart, { method: "post", encType: "application/json" })
     setEditMode(!editMode)
   }
 
@@ -71,12 +111,17 @@ export default function Component({ loaderData }: Route.ComponentProps) {
             Edit
           </Button>
         ) : (
-          <Button onClick={handleSave}>Save</Button>
+          <Button disabled={fetcher.state !== "idle"} onClick={handleSave}>
+            {fetcher.state !== "idle" && <Spinner />}
+            Save
+          </Button>
         )}
         <Button
           variant="secondary"
           disabled={!editMode}
-          onClick={() => dispatch({ type: "ADD_TABLE" })}
+          onClick={() =>
+            dispatch({ type: "ADD_TABLE", classroomId: classroom.id })
+          }
         >
           <Plus />
           <span>Add table</span>
@@ -130,9 +175,9 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         <div className="flex min-h-0 w-full flex-1 gap-4">
           <RosterPanel students={unassigned} editMode={editMode} />
           <SeatingChartCanvas
-            tables={state.tables}
+            tables={chart.tables}
             studentsById={studentsById}
-            assignments={state.assignments}
+            assignments={chart.assignments}
             editMode={editMode}
             dispatch={dispatch}
           />

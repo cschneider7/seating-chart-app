@@ -27,3 +27,9 @@ export interface Seat {
   student_id: string | null
   position: number
 }
+
+export interface SeatAssignment {
+  table_id: string
+  position: number
+  student_id: string
+}

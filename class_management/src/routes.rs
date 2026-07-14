@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Router,
-    routing::{delete, get, patch, post},
+    routing::{delete, get, patch, post, put},
 };
 
 use crate::{AppState, handlers};
@@ -48,6 +48,14 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
         .route(
             "/api/v1/classrooms/{classroom_id}",
             delete(handlers::classroom::delete_classroom_handler),
+        )
+        .route(
+            "/api/v1/classrooms/{classroom_id}/seating-chart",
+            get(handlers::classroom::get_seating_chart_handler),
+        )
+        .route(
+            "/api/v1/classrooms/{classroom_id}/seating-chart",
+            put(handlers::classroom::update_seating_chart_handler),
         )
         .route(
             "/api/v1/classrooms/{classroom_id}/tables",

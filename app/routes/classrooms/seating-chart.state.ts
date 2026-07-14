@@ -6,18 +6,11 @@ import {
   TABLE_SPACING,
   TABLES_PER_ROW,
 } from "~/components/seating-chart-canvas"
-import { createTableSchema } from "~/lib/schemas"
 import type { Student, Table } from "~/lib/types"
-
-// This state is local-only and resets on refresh: the backend has no
-// handlers or x/y columns for tables/seats yet, so there is nowhere to
-// persist it. Wiring this up is a follow-up once tables/seats are wired up
-// server-side.
 
 export type SeatAssignments = Record<string, string /* studentId */>
 
 export interface SeatingChartState {
-  classroomId: string
   tables: Table[]
   assignments: SeatAssignments
 }
@@ -29,14 +22,13 @@ export type SeatingChartActionData =
   | { kind: "roster" }
 
 export type SeatingChartAction =
-  | { type: "ADD_TABLE" }
+  | { type: "ADD_TABLE"; classroomId: string }
   | { type: "REMOVE_TABLE"; tableId: string }
   | { type: "MOVE_TABLE_BY"; tableId: string; deltaX: number; deltaY: number }
   | { type: "SET_SEAT_COUNT"; tableId: string; seatCount: number }
   | { type: "ASSIGN_STUDENT"; studentId: string; seatId: string }
   | { type: "UNASSIGN_STUDENT"; studentId: string }
   | { type: "UNASSIGN_ALL" }
-  | { type: "COMMIT_CHANGES" }
 
 export function getSeatId(tableId: string, seatIndex: number): string {
   return `${tableId}:${seatIndex}`
@@ -63,7 +55,7 @@ export function seatingChartReducer(
 ): SeatingChartState {
   switch (action.type) {
     case "ADD_TABLE": {
-      const table = createTable(state.tables.length, state.classroomId)
+      const table = createTable(state.tables.length, action.classroomId)
       return { ...state, tables: [...state.tables, table] }
     }
 
@@ -83,8 +75,8 @@ export function seatingChartReducer(
         table.id === action.tableId
           ? {
               ...table,
-              x: table.x_pos + action.deltaX,
-              y: table.y_pos + action.deltaY,
+              x_pos: table.x_pos + action.deltaX,
+              y_pos: table.y_pos + action.deltaY,
             }
           : table
       )
@@ -97,7 +89,9 @@ export function seatingChartReducer(
         Math.max(MIN_SEAT_COUNT, action.seatCount)
       )
       const tables = state.tables.map((table) =>
-        table.id === action.tableId ? { ...table, seatCount } : table
+        table.id === action.tableId
+          ? { ...table, seat_count: seatCount }
+          : table
       )
       const assignments = Object.fromEntries(
         Object.entries(state.assignments).filter(([seatId]) => {
@@ -147,11 +141,6 @@ export function seatingChartReducer(
     case "UNASSIGN_ALL": {
       const assignments = {}
       return { ...state, assignments }
-    }
-
-    case "COMMIT_CHANGES": {
-      // TODO detect changes and update tables/seats
-      return state
     }
 
     default:

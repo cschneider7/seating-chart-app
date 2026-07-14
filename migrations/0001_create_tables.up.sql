@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS tables (
     created_time TIMESTAMPTZ DEFAULT now()
 );
 
--- -- Seats
+-- Seats
 CREATE TABLE IF NOT EXISTS seats (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     table_id UUID NOT NULL REFERENCES tables ON DELETE CASCADE,

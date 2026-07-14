@@ -71,3 +71,13 @@ export const createSeatSchema = z.object({
 export const editSeatSchema = z.object({
   student_id: z.uuidv4().nullish(),
 })
+
+export const seatingChartTableSchema = z.object({
+  x_pos: z.int(),
+  y_pos: z.int(),
+  seats: z.array(z.uuidv4().nullable()),
+})
+
+export const seatingChartSchema = z.object({
+  tables: z.array(seatingChartTableSchema),
+})
