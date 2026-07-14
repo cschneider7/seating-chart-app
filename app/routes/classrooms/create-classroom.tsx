@@ -1,6 +1,11 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
-import { redirect, useSubmit } from "react-router"
+import {
+  Link,
+  isRouteErrorResponse,
+  redirect,
+  useSubmit,
+} from "react-router"
 import * as z from "zod"
 import { Button } from "~/components/ui/button"
 import {
@@ -143,6 +148,47 @@ export default function Component() {
             </Button>
           </Field>
         </CardFooter>
+      </Card>
+    </div>
+  )
+}
+
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  let details =
+    "We couldn't confirm your classroom was created. If you already submitted this form, check the classroom list before trying again."
+  let stack: string | undefined
+
+  if (isRouteErrorResponse(error)) {
+    details = error.statusText || details
+  } else if (import.meta.env.DEV && error instanceof Error) {
+    details = error.message
+    stack = error.stack
+  }
+
+  return (
+    <div className="mx-auto w-full max-w-md">
+      <Card className="relative mx-auto w-full sm:max-w-md">
+        <CardHeader>
+          <CardTitle>Couldn't create classroom</CardTitle>
+          <CardDescription>{details}</CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Field orientation="horizontal">
+            <Button variant="outline" render={<Link to="/classrooms" />}>
+              Back to classrooms
+            </Button>
+            <Button render={<Link to="/classrooms/new" reloadDocument />}>
+              Try again
+            </Button>
+          </Field>
+        </CardFooter>
+        {stack && (
+          <CardContent>
+            <pre className="w-full overflow-x-auto p-4 text-xs">
+              <code>{stack}</code>
+            </pre>
+          </CardContent>
+        )}
       </Card>
     </div>
   )
