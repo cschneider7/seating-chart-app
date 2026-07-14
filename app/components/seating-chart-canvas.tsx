@@ -32,14 +32,14 @@ export const TABLE_OFFSET = GRID_STEP * 2
 
 function StudentChip({
   student,
-  editMode,
+  locked,
 }: {
   student: Student
-  editMode: boolean
+  locked: boolean
 }) {
   const { ref } = useDraggable<SeatingChartActionData>({
     id: student.id,
-    disabled: !editMode,
+    disabled: locked,
     type: "student",
     data: { kind: "student", studentId: student.id },
   })
@@ -69,12 +69,12 @@ function SeatSlot({
   tableId,
   seatIndex,
   student,
-  editMode,
+  locked,
 }: {
   tableId: string
   seatIndex: number
   student: Student | undefined
-  editMode: boolean
+  locked: boolean
 }) {
   const seatId = getSeatId(tableId, seatIndex)
   const { ref, isDropTarget } = useDroppable<SeatingChartActionData>({
@@ -93,11 +93,7 @@ function SeatSlot({
         isDropTarget && "border border-primary bg-primary/10"
       )}
     >
-      {student ? (
-        <StudentChip student={student} editMode={editMode} />
-      ) : (
-        "Empty"
-      )}
+      {student ? <StudentChip student={student} locked={locked} /> : "Empty"}
     </div>
   )
 }
@@ -107,14 +103,14 @@ function TableCard({
   index,
   studentsById,
   assignments,
-  editMode,
+  locked,
   dispatch,
 }: {
   table: Table
   index: number
   studentsById: Map<string, Student>
   assignments: SeatAssignments
-  editMode: boolean
+  locked: boolean
   dispatch: Dispatch<SeatingChartAction>
 }) {
   const { ref, handleRef } = useDraggable<SeatingChartActionData>({
@@ -122,7 +118,7 @@ function TableCard({
     type: "table",
     data: { kind: "table", tableId: table.id },
     modifiers: [RestrictToWindow, SnapModifier.configure({ size: GRID_STEP })],
-    disabled: !editMode,
+    disabled: locked,
   })
 
   return (
@@ -141,49 +137,51 @@ function TableCard({
           <GripVerticalIcon className="size-4 text-muted-foreground" />
           Table {index + 1}
         </CardTitle>
-        <CardAction className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-xs"
-            onClick={() =>
-              dispatch({
-                type: "SET_SEAT_COUNT",
-                tableId: table.id,
-                seatCount: table.seat_count - 1,
-              })
-            }
-          >
-            <MinusIcon />
-          </Button>
-          <span className="w-4 text-center text-xs tabular-nums">
-            {table.seat_count}
-          </span>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon-xs"
-            onClick={() =>
-              dispatch({
-                type: "SET_SEAT_COUNT",
-                tableId: table.id,
-                seatCount: table.seat_count + 1,
-              })
-            }
-          >
-            <PlusIcon />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            onClick={() =>
-              dispatch({ type: "REMOVE_TABLE", tableId: table.id })
-            }
-          >
-            <Trash2Icon />
-          </Button>
-        </CardAction>
+        {!locked ? (
+          <CardAction className="flex items-center gap-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-xs"
+              onClick={() =>
+                dispatch({
+                  type: "SET_SEAT_COUNT",
+                  tableId: table.id,
+                  seatCount: table.seat_count - 1,
+                })
+              }
+            >
+              <MinusIcon />
+            </Button>
+            <span className="w-4 text-center text-xs tabular-nums">
+              {table.seat_count}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-xs"
+              onClick={() =>
+                dispatch({
+                  type: "SET_SEAT_COUNT",
+                  tableId: table.id,
+                  seatCount: table.seat_count + 1,
+                })
+              }
+            >
+              <PlusIcon />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              onClick={() =>
+                dispatch({ type: "REMOVE_TABLE", tableId: table.id })
+              }
+            >
+              <Trash2Icon />
+            </Button>
+          </CardAction>
+        ) : null}
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-3">
@@ -195,7 +193,7 @@ function TableCard({
               student={studentsById.get(
                 assignments[getSeatId(table.id, seatIndex)] ?? ""
               )}
-              editMode={editMode}
+              locked={locked}
             />
           ))}
         </div>
@@ -206,10 +204,10 @@ function TableCard({
 
 export function RosterPanel({
   students,
-  editMode,
+  locked,
 }: {
   students: Student[]
-  editMode: boolean
+  locked: boolean
 }) {
   const { ref, isDropTarget } = useDroppable<SeatingChartActionData>({
     id: "roster",
@@ -237,7 +235,7 @@ export function RosterPanel({
                 <StudentChip
                   key={student.id}
                   student={student}
-                  editMode={editMode}
+                  locked={locked}
                 />
               ))
             )}
@@ -252,13 +250,13 @@ export function SeatingChartCanvas({
   tables,
   studentsById,
   assignments,
-  editMode,
+  locked,
   dispatch,
 }: {
   tables: Table[]
   studentsById: Map<string, Student>
   assignments: SeatAssignments
-  editMode: boolean
+  locked: boolean
   dispatch: Dispatch<SeatingChartAction>
 }) {
   return (
@@ -277,7 +275,7 @@ export function SeatingChartCanvas({
           index={index}
           studentsById={studentsById}
           assignments={assignments}
-          editMode={editMode}
+          locked={locked}
           dispatch={dispatch}
         />
       ))}

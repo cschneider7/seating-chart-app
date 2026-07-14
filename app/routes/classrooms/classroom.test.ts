@@ -69,6 +69,7 @@ describe("classroom loader", () => {
       {
         id: "table-1",
         classroom_id: classroomId,
+        table_number: 1,
         seat_count: 2,
         x_pos: 0,
         y_pos: 0,
@@ -126,6 +127,7 @@ describe("classroom action", () => {
         {
           id: "table-1",
           classroom_id: classroomId,
+          table_number: 1,
           seat_count: 2,
           x_pos: 40,
           y_pos: 60,

@@ -39,34 +39,6 @@ pub struct UpdateStudentSchema {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct TableSchema {
-    pub classroom_id: Uuid,
-    pub seat_count: i16,
-    pub x_pos: i32,
-    pub y_pos: i32,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateTableSchema {
-    pub seat_count: Option<i16>,
-    pub x_pos: Option<i32>,
-    pub y_pos: Option<i32>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct SeatSchema {
-    pub table_id: Uuid,
-    pub student_id: Option<Uuid>,
-    pub position: i16,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct UpdateSeatSchema {
-    #[serde(default, deserialize_with = "deserialize_some")]
-    pub student_id: Option<Option<Uuid>>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct SeatingChartTableSchema {
     pub x_pos: i32,
     pub y_pos: i32,

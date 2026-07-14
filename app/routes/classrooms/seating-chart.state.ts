@@ -29,6 +29,7 @@ export type SeatingChartAction =
   | { type: "ASSIGN_STUDENT"; studentId: string; seatId: string }
   | { type: "UNASSIGN_STUDENT"; studentId: string }
   | { type: "UNASSIGN_ALL" }
+  | { type: "REVERT_CHANGES"; tables: Table[]; assignments: SeatAssignments }
 
 export function getSeatId(tableId: string, seatIndex: number): string {
   return `${tableId}:${seatIndex}`
@@ -43,6 +44,9 @@ export function createTable(index: number, classroomId: string): Table {
   return {
     id: crypto.randomUUID(),
     classroom_id: classroomId,
+    // Placeholder: the backend assigns the real table_number on save (full
+    // replace), like it does the real id - this value never leaves the client.
+    table_number: 0,
     seat_count: DEFAULT_SEAT_COUNT,
     x_pos: TABLE_OFFSET + (index % TABLES_PER_ROW) * TABLE_SPACING,
     y_pos: TABLE_OFFSET + Math.floor(index / TABLES_PER_ROW) * TABLE_SPACING,
@@ -141,6 +145,10 @@ export function seatingChartReducer(
     case "UNASSIGN_ALL": {
       const assignments = {}
       return { ...state, assignments }
+    }
+
+    case "REVERT_CHANGES": {
+      return { tables: action.tables, assignments: action.assignments }
     }
 
     default:

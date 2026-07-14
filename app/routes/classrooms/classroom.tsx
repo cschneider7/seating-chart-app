@@ -76,7 +76,7 @@ export async function action({ params, request }: Route.ActionArgs) {
 export default function Component({ loaderData }: Route.ComponentProps) {
   const { classroom, students, tables, assignments } = loaderData
 
-  const [editMode, setEditMode] = useState(false)
+  const [locked, setLocked] = useState(true)
 
   const initialChart = {
     tables: tables,
@@ -96,7 +96,12 @@ export default function Component({ loaderData }: Route.ComponentProps) {
 
   function handleSave() {
     fetcher.submit(chart, { method: "post", encType: "application/json" })
-    setEditMode(!editMode)
+    setLocked(true)
+  }
+
+  function handleCancel() {
+    dispatch({ type: "REVERT_CHANGES", tables, assignments })
+    setLocked(true)
   }
 
   return (
@@ -106,19 +111,28 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         <h3>{classroom.subject}</h3>
       </div>
       <div className="flex shrink-0 justify-end gap-2 pb-2">
-        {!editMode ? (
-          <Button variant="secondary" onClick={() => setEditMode(!editMode)}>
+        {locked ? (
+          <Button variant="secondary" onClick={() => setLocked(false)}>
             Edit
           </Button>
         ) : (
-          <Button disabled={fetcher.state !== "idle"} onClick={handleSave}>
-            {fetcher.state !== "idle" && <Spinner />}
-            Save
-          </Button>
+          <>
+            <Button
+              disabled={fetcher.state !== "idle"}
+              variant="secondary"
+              onClick={handleCancel}
+            >
+              Cancel
+            </Button>
+            <Button disabled={fetcher.state !== "idle"} onClick={handleSave}>
+              {fetcher.state !== "idle" && <Spinner />}
+              Save
+            </Button>
+          </>
         )}
         <Button
           variant="secondary"
-          disabled={!editMode}
+          disabled={locked}
           onClick={() =>
             dispatch({ type: "ADD_TABLE", classroomId: classroom.id })
           }
@@ -127,11 +141,11 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           <span>Add table</span>
         </Button>
         <Button
-          disabled={!editMode}
+          disabled={locked}
           variant="destructive"
           onClick={() => dispatch({ type: "UNASSIGN_ALL" })}
         >
-          Reset
+          Unassign All
         </Button>
       </div>
       <DragDropProvider<SeatingChartActionData>
@@ -173,12 +187,12 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         modifiers={[RestrictToWindow]}
       >
         <div className="flex min-h-0 w-full flex-1 gap-4">
-          <RosterPanel students={unassigned} editMode={editMode} />
+          <RosterPanel students={unassigned} locked={locked} />
           <SeatingChartCanvas
             tables={chart.tables}
             studentsById={studentsById}
             assignments={chart.assignments}
-            editMode={editMode}
+            locked={locked}
             dispatch={dispatch}
           />
         </div>

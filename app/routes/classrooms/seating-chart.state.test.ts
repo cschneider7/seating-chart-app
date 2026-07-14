@@ -16,6 +16,7 @@ function makeTable(overrides: Partial<Table> = {}): Table {
   return {
     id: "table-1",
     classroom_id: "c1",
+    table_number: 1,
     seat_count: 4,
     x_pos: 0,
     y_pos: 0,
@@ -278,6 +279,26 @@ describe("seatingChartReducer", () => {
 
       expect(next.assignments).toEqual({})
       expect(next.tables).toBe(tables)
+    })
+  })
+
+  describe("REVERT_CHANGES", () => {
+    it("replaces both tables and assignments wholesale, discarding unsaved edits", () => {
+      const state = makeState({
+        tables: [makeTable({ id: "unsaved-table" })],
+        assignments: { "unsaved-table:0": "s1" },
+      })
+      const revertTables = [makeTable({ id: "persisted-table" })]
+      const revertAssignments = { "persisted-table:0": "s2" }
+
+      const next = seatingChartReducer(state, {
+        type: "REVERT_CHANGES",
+        tables: revertTables,
+        assignments: revertAssignments,
+      })
+
+      expect(next.tables).toBe(revertTables)
+      expect(next.assignments).toBe(revertAssignments)
     })
   })
 })

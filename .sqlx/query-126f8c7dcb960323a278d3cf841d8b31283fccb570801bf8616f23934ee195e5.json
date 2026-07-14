@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO tables (classroom_id, seat_count, x_pos, y_pos)\n            VALUES ($1, $2, $3, $4)\n            RETURNING id",
+  "query": "INSERT INTO tables (classroom_id, table_number, seat_count, x_pos, y_pos)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING id",
   "describe": {
     "columns": [
       {
@@ -18,6 +18,7 @@
     "parameters": {
       "Left": [
         "Uuid",
+        "Int4",
         "Int2",
         "Int4",
         "Int4"
@@ -27,5 +28,5 @@
       false
     ]
   },
-  "hash": "e29749e9bf54012450e1963bf5af3bae56ce37f4af109253ec067fabd3ec7ade"
+  "hash": "126f8c7dcb960323a278d3cf841d8b31283fccb570801bf8616f23934ee195e5"
 }

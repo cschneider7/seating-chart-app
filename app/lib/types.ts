@@ -16,16 +16,10 @@ export interface Classroom {
 export interface Table {
   id: string
   classroom_id: string
+  table_number: number
   seat_count: number
   x_pos: number
   y_pos: number
-}
-
-export interface Seat {
-  id: string
-  table_id: string
-  student_id: string | null
-  position: number
 }
 
 export interface SeatAssignment {

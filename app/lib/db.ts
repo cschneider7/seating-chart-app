@@ -1,22 +1,12 @@
 import * as z from "zod"
 import {
   createClassroomSchema,
-  createSeatSchema,
   createStudentSchema,
-  createTableSchema,
   editClassroomSchema,
-  editSeatSchema,
   editStudentSchema,
-  editTableSchema,
   seatingChartSchema,
 } from "~/lib/schemas"
-import type {
-  Classroom,
-  Seat,
-  SeatAssignment,
-  Student,
-  Table,
-} from "~/lib/types"
+import type { Classroom, SeatAssignment, Student, Table } from "~/lib/types"
 
 export async function getStudent(studentId: string): Promise<Student> {
   const res = await fetch(`http://localhost:3000/api/v1/students/${studentId}`)
@@ -164,16 +154,6 @@ export async function deleteClassroom(classroomId: string) {
   }
 }
 
-export async function getTable(tableId: string): Promise<Table> {
-  const res = await fetch(`http://localhost:3000/api/v1/tables/${tableId}`)
-  if (!res.ok) {
-    throw new Response("Table not found", { status: 404 })
-  }
-
-  const json = await res.json()
-  return json.data
-}
-
 export async function getClassroomTables(
   classroomId: string
 ): Promise<Table[]> {
@@ -186,126 +166,6 @@ export async function getClassroomTables(
 
   const json = await res.json()
   return json.data
-}
-
-export async function createTable(
-  tableInfo: z.infer<typeof createTableSchema>
-): Promise<Table> {
-  const response = await fetch("http://localhost:3000/api/v1/tables", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(tableInfo),
-  })
-
-  if (!response.ok) {
-    throw new Error("Error creating table: " + response.statusText)
-  }
-
-  const json = await response.json()
-  return json.data
-}
-
-export async function updateTable(
-  tableId: string,
-  updates: z.infer<typeof editTableSchema>
-) {
-  const response = await fetch(
-    `http://localhost:3000/api/v1/tables/${tableId}`,
-    {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(updates),
-    }
-  )
-
-  if (!response.ok) {
-    throw new Error("Error updating table: " + response.statusText)
-  }
-}
-
-export async function deleteTable(tableId: string) {
-  const response = await fetch(
-    `http://localhost:3000/api/v1/tables/${tableId}`,
-    {
-      method: "DELETE",
-    }
-  )
-
-  if (!response.ok) {
-    throw new Error("Error deleting table: " + response.statusText)
-  }
-}
-
-export async function getSeat(seatId: string): Promise<Seat> {
-  const res = await fetch(`http://localhost:3000/api/v1/seats/${seatId}`)
-  if (!res.ok) {
-    throw new Response("Seat not found", { status: 404 })
-  }
-
-  const json = await res.json()
-  return json.data
-}
-
-export async function getTableSeats(tableId: string): Promise<Table[]> {
-  const res = await fetch(
-    `http://localhost:3000/api/v1/tables/${tableId}/seats`
-  )
-  if (!res.ok) {
-    throw new Error(`Error getting table seats: ", ${res}`)
-  }
-
-  const json = await res.json()
-  return json.data
-}
-
-export async function createSeat(
-  seatInfo: z.infer<typeof createSeatSchema>
-): Promise<Seat> {
-  const response = await fetch("http://localhost:3000/api/v1/seats", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(seatInfo),
-  })
-
-  if (!response.ok) {
-    throw new Error("Error creating seat: " + response.statusText)
-  }
-
-  const json = await response.json()
-  return json.data
-}
-
-export async function updateSeat(
-  seatId: string,
-  updates: z.infer<typeof editSeatSchema>
-) {
-  const response = await fetch(`http://localhost:3000/api/v1/seats/${seatId}`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(updates),
-  })
-
-  if (!response.ok) {
-    throw new Error("Error updating seat: " + response.statusText)
-  }
-}
-
-export async function deleteSeat(seatId: string) {
-  const response = await fetch(`http://localhost:3000/api/v1/seats/${seatId}`, {
-    method: "DELETE",
-  })
-
-  if (!response.ok) {
-    throw new Error("Error deleting seat: " + response.statusText)
-  }
 }
 
 export async function updateSeatingChart(
