@@ -1,16 +1,12 @@
-import type { Student } from "~/lib/types"
-
-// This state is local-only and resets on refresh: the backend has no
-// handlers or x/y columns for tables/seats yet, so there is nowhere to
-// persist it. Wiring this up is a follow-up once tables/seats are wired up
-// server-side.
-
-export interface Table {
-  id: string
-  seatCount: number
-  x: number
-  y: number
-}
+import {
+  DEFAULT_SEAT_COUNT,
+  MAX_SEAT_COUNT,
+  MIN_SEAT_COUNT,
+  TABLE_OFFSET,
+  TABLE_SPACING,
+  TABLES_PER_ROW,
+} from "~/components/seating-chart-canvas"
+import type { Student, Table } from "~/lib/types"
 
 export type SeatAssignments = Record<string, string /* studentId */>
 
@@ -26,22 +22,14 @@ export type SeatingChartActionData =
   | { kind: "roster" }
 
 export type SeatingChartAction =
-  | { type: "ADD_TABLE" }
+  | { type: "ADD_TABLE"; classroomId: string }
   | { type: "REMOVE_TABLE"; tableId: string }
   | { type: "MOVE_TABLE_BY"; tableId: string; deltaX: number; deltaY: number }
   | { type: "SET_SEAT_COUNT"; tableId: string; seatCount: number }
   | { type: "ASSIGN_STUDENT"; studentId: string; seatId: string }
   | { type: "UNASSIGN_STUDENT"; studentId: string }
   | { type: "UNASSIGN_ALL" }
-
-export const GRID_STEP = 20
-
-const DEFAULT_SEAT_COUNT = 4
-const MIN_SEAT_COUNT = 1
-const MAX_SEAT_COUNT = 12
-const TABLES_PER_ROW = 4
-const TABLE_SPACING = GRID_STEP * 13
-const TABLE_OFFSET = GRID_STEP * 2
+  | { type: "REVERT_CHANGES"; tables: Table[]; assignments: SeatAssignments }
 
 export function getSeatId(tableId: string, seatIndex: number): string {
   return `${tableId}:${seatIndex}`
@@ -52,12 +40,16 @@ function parseSeatId(seatId: string): { tableId: string; seatIndex: number } {
   return { tableId, seatIndex: Number(seatIndex) }
 }
 
-export function createTable(index: number): Table {
+export function createTable(index: number, classroomId: string): Table {
   return {
     id: crypto.randomUUID(),
-    seatCount: DEFAULT_SEAT_COUNT,
-    x: TABLE_OFFSET + (index % TABLES_PER_ROW) * TABLE_SPACING,
-    y: TABLE_OFFSET + Math.floor(index / TABLES_PER_ROW) * TABLE_SPACING,
+    classroom_id: classroomId,
+    // Placeholder: the backend assigns the real table_number on save (full
+    // replace), like it does the real id - this value never leaves the client.
+    table_number: 0,
+    seat_count: DEFAULT_SEAT_COUNT,
+    x_pos: TABLE_OFFSET + (index % TABLES_PER_ROW) * TABLE_SPACING,
+    y_pos: TABLE_OFFSET + Math.floor(index / TABLES_PER_ROW) * TABLE_SPACING,
   }
 }
 
@@ -67,7 +59,7 @@ export function seatingChartReducer(
 ): SeatingChartState {
   switch (action.type) {
     case "ADD_TABLE": {
-      const table = createTable(state.tables.length)
+      const table = createTable(state.tables.length, action.classroomId)
       return { ...state, tables: [...state.tables, table] }
     }
 
@@ -79,13 +71,17 @@ export function seatingChartReducer(
           return tableId !== action.tableId
         })
       )
-      return { tables, assignments }
+      return { ...state, tables, assignments }
     }
 
     case "MOVE_TABLE_BY": {
       const tables = state.tables.map((table) =>
         table.id === action.tableId
-          ? { ...table, x: table.x + action.deltaX, y: table.y + action.deltaY }
+          ? {
+              ...table,
+              x_pos: table.x_pos + action.deltaX,
+              y_pos: table.y_pos + action.deltaY,
+            }
           : table
       )
       return { ...state, tables }
@@ -97,7 +93,9 @@ export function seatingChartReducer(
         Math.max(MIN_SEAT_COUNT, action.seatCount)
       )
       const tables = state.tables.map((table) =>
-        table.id === action.tableId ? { ...table, seatCount } : table
+        table.id === action.tableId
+          ? { ...table, seat_count: seatCount }
+          : table
       )
       const assignments = Object.fromEntries(
         Object.entries(state.assignments).filter(([seatId]) => {
@@ -105,7 +103,7 @@ export function seatingChartReducer(
           return tableId !== action.tableId || seatIndex < seatCount
         })
       )
-      return { tables, assignments }
+      return { ...state, tables, assignments }
     }
 
     case "ASSIGN_STUDENT": {
@@ -147,6 +145,10 @@ export function seatingChartReducer(
     case "UNASSIGN_ALL": {
       const assignments = {}
       return { ...state, assignments }
+    }
+
+    case "REVERT_CHANGES": {
+      return { tables: action.tables, assignments: action.assignments }
     }
 
     default:

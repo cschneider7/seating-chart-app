@@ -28,12 +28,12 @@ import {
   SelectValue,
 } from "~/components/ui/select"
 import { createStudent, getClassrooms } from "~/lib/db"
-import { createStudentFormSchema } from "~/lib/schemas"
+import { createStudentSchema } from "~/lib/schemas"
 import type { Route } from "./+types/create-student"
 
 export async function action({ request }: Route.ActionArgs) {
   const rawData = await request.json()
-  const result = createStudentFormSchema.safeParse(rawData)
+  const result = createStudentSchema.safeParse(rawData)
 
   if (!result.success) {
     return z.treeifyError(result.error)
@@ -52,16 +52,15 @@ export default function Component({ loaderData }: Route.ComponentProps) {
   const { classrooms } = loaderData
   const submit = useSubmit()
 
-  const form = useForm<z.infer<typeof createStudentFormSchema>>({
-    resolver: zodResolver(createStudentFormSchema),
+  const form = useForm<z.infer<typeof createStudentSchema>>({
+    resolver: zodResolver(createStudentSchema),
     defaultValues: {
       name: "",
       classroom_id: null,
-      seat_id: null,
     },
   })
 
-  const onSubmit = (data: z.infer<typeof createStudentFormSchema>) =>
+  const onSubmit = (data: z.infer<typeof createStudentSchema>) =>
     submit(data, { method: "post", encType: "application/json" })
 
   const classroomOptions: [{ label: string; value: string | null }] = [

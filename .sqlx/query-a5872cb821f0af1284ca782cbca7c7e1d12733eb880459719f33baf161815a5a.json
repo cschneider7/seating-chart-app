@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE students SET\n            student_id = $1,\n            name = $2,\n            classroom_id = $3,\n            seat_id = $4\n        WHERE id = $5\n        RETURNING *",
+  "query": "INSERT INTO students (classroom_id, student_id, name)\n            VALUES ($1, $2, $3)\n            RETURNING *",
   "describe": {
     "columns": [
       {
@@ -16,28 +16,6 @@
       },
       {
         "ordinal": 1,
-        "name": "student_id",
-        "type_info": "Int4",
-        "origin": {
-          "Table": {
-            "table": "students",
-            "name": "student_id"
-          }
-        }
-      },
-      {
-        "ordinal": 2,
-        "name": "name",
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "students",
-            "name": "name"
-          }
-        }
-      },
-      {
-        "ordinal": 3,
         "name": "classroom_id",
         "type_info": "Uuid",
         "origin": {
@@ -48,18 +26,29 @@
         }
       },
       {
-        "ordinal": 4,
-        "name": "seat_id",
-        "type_info": "Uuid",
+        "ordinal": 2,
+        "name": "student_id",
+        "type_info": "Int4",
         "origin": {
           "Table": {
             "table": "students",
-            "name": "seat_id"
+            "name": "student_id"
           }
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "students",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "created_time",
         "type_info": "Timestamptz",
         "origin": {
@@ -72,21 +61,18 @@
     ],
     "parameters": {
       "Left": [
+        "Uuid",
         "Int4",
-        "Text",
-        "Uuid",
-        "Uuid",
-        "Uuid"
+        "Text"
       ]
     },
     "nullable": [
       false,
+      true,
       false,
       false,
-      true,
-      true,
       true
     ]
   },
-  "hash": "b112c87e4f79550b2b5e914811ae0479c72c3c484fc76f654ee331f2c4b92aa0"
+  "hash": "a5872cb821f0af1284ca782cbca7c7e1d12733eb880459719f33baf161815a5a"
 }

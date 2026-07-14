@@ -71,17 +71,15 @@ pub async fn create_student_handler(
     let student = sqlx::query_as!(
         StudentModel,
         r#"INSERT INTO students (
-            student_id,
-            name,
             classroom_id,
-            seat_id
+            student_id,
+            name
         )
-        VALUES ($1, $2, $3, $4)
+        VALUES ($1, $2, $3)
         RETURNING *"#,
-        body.student_id,
-        &body.name,
         body.classroom_id,
-        body.seat_id
+        body.student_id,
+        &body.name
     )
     .fetch_one(&data.db)
     .await
@@ -123,24 +121,21 @@ pub async fn update_student_handler(
             ),
         })?;
 
+    let new_classroom_id = body.classroom_id.unwrap_or(student.classroom_id);
     let new_student_id = body.student_id.unwrap_or(student.student_id);
     let new_name = body.name.as_ref().unwrap_or(&student.name);
-    let new_classroom_id = body.classroom_id.unwrap_or(student.classroom_id);
-    let new_seat_id = body.seat_id.unwrap_or(student.seat_id);
 
     let updated_student = sqlx::query_as!(
         StudentModel,
         r#"UPDATE students SET
-            student_id = $1,
-            name = $2,
-            classroom_id = $3,
-            seat_id = $4
-        WHERE id = $5
+            classroom_id = $1,
+            student_id = $2,
+            name = $3
+        WHERE id = $4
         RETURNING *"#,
+        new_classroom_id,
         new_student_id,
         &new_name,
-        new_classroom_id,
-        new_seat_id,
         student.id
     )
     .fetch_one(&data.db)
@@ -208,7 +203,7 @@ mod tests {
     use uuid::Uuid;
 
     use super::*;
-    use crate::routes::create_router;
+    use crate::{model::ClassroomModel, routes::create_router};
 
     fn app(pool: sqlx::PgPool) -> Router {
         create_router(Arc::new(AppState { db: pool }))
@@ -228,22 +223,32 @@ mod tests {
             .unwrap()
     }
 
+    async fn insert_classroom(pool: &sqlx::PgPool, subject: &str, period: i16) -> ClassroomModel {
+        sqlx::query_as!(
+            ClassroomModel,
+            r#"INSERT INTO classrooms (subject, period) VALUES ($1, $2) RETURNING *"#,
+            subject,
+            period
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
     async fn insert_student(
         pool: &sqlx::PgPool,
+        classroom_id: Option<Uuid>,
         student_id: i32,
         name: &str,
-        classroom_id: Option<Uuid>,
-        seat_id: Option<Uuid>,
     ) -> StudentModel {
         sqlx::query_as!(
             StudentModel,
-            r#"INSERT INTO students (student_id, name, classroom_id, seat_id)
-            VALUES ($1, $2, $3, $4)
+            r#"INSERT INTO students (classroom_id, student_id, name)
+            VALUES ($1, $2, $3)
             RETURNING *"#,
-            student_id,
-            name,
             classroom_id,
-            seat_id
+            student_id,
+            name
         )
         .fetch_one(pool)
         .await
@@ -305,9 +310,9 @@ mod tests {
         Ok(())
     }
 
-    // No FK constraint on `classroom_id`, so a nonexistent one is accepted.
+    // `classroom_id` has a FK constraint, so a nonexistent one is rejected.
     #[sqlx::test(migrations = "../migrations")]
-    async fn create_student_allows_nonexistent_classroom_id(
+    async fn create_student_rejects_nonexistent_classroom_id(
         pool: sqlx::PgPool,
     ) -> sqlx::Result<()> {
         let app = app(pool);
@@ -323,10 +328,7 @@ mod tests {
             .oneshot(json_request("POST", "/api/v1/students", body))
             .await
             .unwrap();
-        assert_eq!(response.status(), StatusCode::CREATED);
-
-        let json = body_json(response).await;
-        assert_eq!(json["data"]["classroom_id"], fake_classroom_id.to_string());
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
 
         Ok(())
     }
@@ -335,7 +337,7 @@ mod tests {
     async fn update_student_partial_leaves_other_fields_unchanged(
         pool: sqlx::PgPool,
     ) -> sqlx::Result<()> {
-        let existing = insert_student(&pool, 7, "Original Name", None, None).await;
+        let existing = insert_student(&pool, None, 7, "Original Name").await;
         let app = app(pool);
 
         let body = json!({"name": "Updated Name"});
@@ -384,8 +386,8 @@ mod tests {
     async fn update_student_omitted_classroom_id_keeps_existing_value(
         pool: sqlx::PgPool,
     ) -> sqlx::Result<()> {
-        let classroom_id = Uuid::new_v4();
-        let existing = insert_student(&pool, 1, "Bob", Some(classroom_id), None).await;
+        let classroom = insert_classroom(&pool, "Math 2", 3).await;
+        let existing = insert_student(&pool, Some(classroom.id), 1, "Bob").await;
         let app = app(pool);
 
         let body = json!({"name": "Bob Updated"});
@@ -400,7 +402,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
-        assert_eq!(json["data"]["classroom_id"], classroom_id.to_string());
+        assert_eq!(json["data"]["classroom_id"], classroom.id.to_string());
 
         Ok(())
     }
@@ -409,8 +411,8 @@ mod tests {
     async fn update_student_explicit_null_classroom_id_clears_value(
         pool: sqlx::PgPool,
     ) -> sqlx::Result<()> {
-        let classroom_id = Uuid::new_v4();
-        let existing = insert_student(&pool, 1, "Bob", Some(classroom_id), None).await;
+        let classroom = insert_classroom(&pool, "Math 2", 3).await;
+        let existing = insert_student(&pool, Some(classroom.id), 1, "Bob").await;
         let app = app(pool);
 
         let body = json!({"classroom_id": null});
@@ -432,11 +434,11 @@ mod tests {
 
     #[sqlx::test(migrations = "../migrations")]
     async fn update_student_new_classroom_id_sets_value(pool: sqlx::PgPool) -> sqlx::Result<()> {
-        let existing = insert_student(&pool, 1, "Bob", None, None).await;
-        let new_classroom_id = Uuid::new_v4();
+        let existing = insert_student(&pool, None, 1, "Bob").await;
+        let new_classroom = insert_classroom(&pool, "Math 2", 3).await;
         let app = app(pool);
 
-        let body = json!({"classroom_id": new_classroom_id});
+        let body = json!({"classroom_id": new_classroom.id});
         let response = app
             .oneshot(json_request(
                 "PATCH",
@@ -448,14 +450,14 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
-        assert_eq!(json["data"]["classroom_id"], new_classroom_id.to_string());
+        assert_eq!(json["data"]["classroom_id"], new_classroom.id.to_string());
 
         Ok(())
     }
 
     #[sqlx::test(migrations = "../migrations")]
     async fn delete_student_success(pool: sqlx::PgPool) -> sqlx::Result<()> {
-        let existing = insert_student(&pool, 1, "Bob", None, None).await;
+        let existing = insert_student(&pool, None, 1, "Bob").await;
         let app = app(pool.clone());
 
         let response = app

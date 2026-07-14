@@ -1,20 +1,27 @@
 import { describe, expect, it } from "vitest"
-import type { Student } from "~/lib/types"
+import { TABLE_OFFSET, TABLE_SPACING } from "~/components/seating-chart-canvas"
+import type { Student, Table } from "~/lib/types"
 import {
-  GRID_STEP,
   createTable,
   getUnassignedStudents,
   seatingChartReducer,
   type SeatingChartState,
-  type Table,
 } from "./seating-chart.state"
 
 function makeStudent(id: string): Student {
-  return { id, student_id: 1, name: id, classroom_id: "c1", seat_id: null }
+  return { id, student_id: 1, name: id, classroom_id: "c1" }
 }
 
 function makeTable(overrides: Partial<Table> = {}): Table {
-  return { id: "table-1", seatCount: 4, x: 0, y: 0, ...overrides }
+  return {
+    id: "table-1",
+    classroom_id: "c1",
+    table_number: 1,
+    seat_count: 4,
+    x_pos: 0,
+    y_pos: 0,
+    ...overrides,
+  }
 }
 
 function makeState(
@@ -25,23 +32,30 @@ function makeState(
 
 describe("createTable", () => {
   it("defaults to 4 seats", () => {
-    expect(createTable(0).seatCount).toBe(4)
+    expect(createTable(0, "c1").seat_count).toBe(4)
   })
 
   it("lays out tables left-to-right within a row", () => {
-    const first = createTable(0)
-    const second = createTable(1)
+    const first = createTable(0, "c1")
+    const second = createTable(1, "c1")
 
-    expect(second.y).toBe(first.y)
-    expect(second.x - first.x).toBe(GRID_STEP * 13)
+    expect(second.y_pos).toBe(first.y_pos)
+    expect(second.x_pos - first.x_pos).toBe(TABLE_SPACING)
   })
 
   it("wraps to the next row after 4 tables", () => {
-    const first = createTable(0)
-    const fifth = createTable(4)
+    const first = createTable(0, "c1")
+    const fifth = createTable(4, "c1")
 
-    expect(fifth.x).toBe(first.x)
-    expect(fifth.y).toBeGreaterThan(first.y)
+    expect(fifth.x_pos).toBe(first.x_pos)
+    expect(fifth.y_pos).toBeGreaterThan(first.y_pos)
+  })
+
+  it("snaps the initial position to the grid offset", () => {
+    const table = createTable(0, "c1")
+
+    expect(table.x_pos).toBe(TABLE_OFFSET)
+    expect(table.y_pos).toBe(TABLE_OFFSET)
   })
 })
 
@@ -70,22 +84,28 @@ describe("seatingChartReducer", () => {
         assignments: { "table-1:0": "s1" },
       })
 
-      const next = seatingChartReducer(state, { type: "ADD_TABLE" })
+      const next = seatingChartReducer(state, {
+        type: "ADD_TABLE",
+        classroomId: "c1",
+      })
 
       expect(next.tables).toHaveLength(2)
       expect(next.tables[0]).toBe(existing)
       expect(next.assignments).toEqual(state.assignments)
     })
 
-    it("places the new table using createTable(tables.length)", () => {
+    it("places the new table using createTable(tables.length, classroomId)", () => {
       const state = makeState({ tables: [makeTable(), makeTable()] })
 
-      const next = seatingChartReducer(state, { type: "ADD_TABLE" })
-      const expected = createTable(2)
+      const next = seatingChartReducer(state, {
+        type: "ADD_TABLE",
+        classroomId: "c1",
+      })
+      const expected = createTable(2, "c1")
 
-      expect(next.tables[2].x).toBe(expected.x)
-      expect(next.tables[2].y).toBe(expected.y)
-      expect(next.tables[2].seatCount).toBe(expected.seatCount)
+      expect(next.tables[2].x_pos).toBe(expected.x_pos)
+      expect(next.tables[2].y_pos).toBe(expected.y_pos)
+      expect(next.tables[2].seat_count).toBe(expected.seat_count)
     })
   })
 
@@ -109,9 +129,9 @@ describe("seatingChartReducer", () => {
   })
 
   describe("MOVE_TABLE_BY", () => {
-    it("adds the delta to only the matching table", () => {
-      const tableA = makeTable({ id: "a", x: 100, y: 100 })
-      const tableB = makeTable({ id: "b", x: 200, y: 200 })
+    it("adds the delta to only the matching table's x_pos/y_pos", () => {
+      const tableA = makeTable({ id: "a", x_pos: 100, y_pos: 100 })
+      const tableB = makeTable({ id: "b", x_pos: 200, y_pos: 200 })
       const state = makeState({ tables: [tableA, tableB] })
 
       const next = seatingChartReducer(state, {
@@ -121,7 +141,7 @@ describe("seatingChartReducer", () => {
         deltaY: -20,
       })
 
-      expect(next.tables[0]).toEqual({ ...tableA, x: 120, y: 80 })
+      expect(next.tables[0]).toEqual({ ...tableA, x_pos: 120, y_pos: 80 })
       expect(next.tables[1]).toBe(tableB)
     })
   })
@@ -136,7 +156,7 @@ describe("seatingChartReducer", () => {
         seatCount: -3,
       })
 
-      expect(next.tables[0].seatCount).toBe(1)
+      expect(next.tables[0].seat_count).toBe(1)
     })
 
     it("clamps above the maximum to 12", () => {
@@ -148,12 +168,12 @@ describe("seatingChartReducer", () => {
         seatCount: 99,
       })
 
-      expect(next.tables[0].seatCount).toBe(12)
+      expect(next.tables[0].seat_count).toBe(12)
     })
 
     it("unassigns students in seats removed by shrinking, keeps the rest", () => {
       const state = makeState({
-        tables: [makeTable({ id: "a", seatCount: 4 })],
+        tables: [makeTable({ id: "a", seat_count: 4 })],
         assignments: { "a:0": "s1", "a:2": "s2", "a:3": "s3" },
       })
 
@@ -163,7 +183,7 @@ describe("seatingChartReducer", () => {
         seatCount: 2,
       })
 
-      expect(next.tables[0].seatCount).toBe(2)
+      expect(next.tables[0].seat_count).toBe(2)
       expect(next.assignments).toEqual({ "a:0": "s1" })
     })
   })
@@ -259,6 +279,26 @@ describe("seatingChartReducer", () => {
 
       expect(next.assignments).toEqual({})
       expect(next.tables).toBe(tables)
+    })
+  })
+
+  describe("REVERT_CHANGES", () => {
+    it("replaces both tables and assignments wholesale, discarding unsaved edits", () => {
+      const state = makeState({
+        tables: [makeTable({ id: "unsaved-table" })],
+        assignments: { "unsaved-table:0": "s1" },
+      })
+      const revertTables = [makeTable({ id: "persisted-table" })]
+      const revertAssignments = { "persisted-table:0": "s2" }
+
+      const next = seatingChartReducer(state, {
+        type: "REVERT_CHANGES",
+        tables: revertTables,
+        assignments: revertAssignments,
+      })
+
+      expect(next.tables).toBe(revertTables)
+      expect(next.assignments).toBe(revertAssignments)
     })
   })
 })

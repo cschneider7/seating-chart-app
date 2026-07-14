@@ -1,17 +1,17 @@
 import * as z from "zod"
 
-export const createStudentFormSchema = z.object({
+export const createStudentSchema = z.object({
+  classroom_id: z.uuidv4().nullable(),
   student_id: z.coerce.number<number>().int().positive(),
   name: z
     .string()
     .trim()
     .min(1, "Name must be at least 0 characters.")
     .max(100, "Name must be at most 100 characters."),
-  classroom_id: z.uuidv4().nullable(),
-  seat_id: z.uuidv4().nullable(),
 })
 
-export const editStudentFormSchema = z.object({
+export const editStudentSchema = z.object({
+  classroom_id: z.uuidv4().nullish(),
   student_id: z.optional(
     z.coerce
       .number<number>("ID must be a number.")
@@ -25,11 +25,9 @@ export const editStudentFormSchema = z.object({
       .min(1, "Name must be at least 0 characters.")
       .max(100, "Name must be at most 100 characters.")
   ),
-  classroom_id: z.nullish(z.uuidv4()),
-  seat_id: z.nullish(z.uuidv4()),
 })
 
-export const createClassroomFormSchema = z.object({
+export const createClassroomSchema = z.object({
   period: z.coerce.number<number>().int().positive(),
   subject: z
     .string()
@@ -38,7 +36,7 @@ export const createClassroomFormSchema = z.object({
     .max(50, "Subject must be at most 30 characters."),
 })
 
-export const editClassroomFormSchema = z.object({
+export const editClassroomSchema = z.object({
   period: z.optional(z.coerce.number<number>().int().positive()),
   subject: z.optional(
     z
@@ -47,4 +45,14 @@ export const editClassroomFormSchema = z.object({
       .min(1, "Subject must be at least 0 characters.")
       .max(50, "Subject must be at most 30 characters.")
   ),
+})
+
+export const seatingChartTableSchema = z.object({
+  x_pos: z.int(),
+  y_pos: z.int(),
+  seats: z.array(z.uuidv4().nullable()),
+})
+
+export const seatingChartSchema = z.object({
+  tables: z.array(seatingChartTableSchema),
 })

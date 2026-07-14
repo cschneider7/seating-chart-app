@@ -1,0 +1,104 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO tables (classroom_id, table_number, seat_count, x_pos, y_pos)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "tables",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "classroom_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "tables",
+            "name": "classroom_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "table_number",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tables",
+            "name": "table_number"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "seat_count",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "tables",
+            "name": "seat_count"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "x_pos",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tables",
+            "name": "x_pos"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "y_pos",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "tables",
+            "name": "y_pos"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_time",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "tables",
+            "name": "created_time"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4",
+        "Int2",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "a4b3940df4f83552d1a48cab6b33733c96d7e44891831872661218bb8841fd57"
+}

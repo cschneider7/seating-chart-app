@@ -16,28 +16,6 @@
       },
       {
         "ordinal": 1,
-        "name": "student_id",
-        "type_info": "Int4",
-        "origin": {
-          "Table": {
-            "table": "students",
-            "name": "student_id"
-          }
-        }
-      },
-      {
-        "ordinal": 2,
-        "name": "name",
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "students",
-            "name": "name"
-          }
-        }
-      },
-      {
-        "ordinal": 3,
         "name": "classroom_id",
         "type_info": "Uuid",
         "origin": {
@@ -48,18 +26,29 @@
         }
       },
       {
-        "ordinal": 4,
-        "name": "seat_id",
-        "type_info": "Uuid",
+        "ordinal": 2,
+        "name": "student_id",
+        "type_info": "Int4",
         "origin": {
           "Table": {
             "table": "students",
-            "name": "seat_id"
+            "name": "student_id"
           }
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 3,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "students",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "created_time",
         "type_info": "Timestamptz",
         "origin": {
@@ -77,10 +66,9 @@
     },
     "nullable": [
       false,
+      true,
       false,
       false,
-      true,
-      true,
       true
     ]
   },
