@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import type * as z from "zod"
+import type { seatingChartSchema } from "~/lib/schemas"
 import type { Classroom, SeatAssignment, Student, Table } from "~/lib/types"
 import { action, loader } from "./classroom"
-import type { SeatingChartState } from "./seating-chart.state"
 
 const classroomId = "classroom-1"
 
@@ -119,21 +120,11 @@ describe("classroom action", () => {
     vi.unstubAllGlobals()
   })
 
-  it("PUTs the chart as a nested, 0-indexed tables/seats payload", async () => {
+  it("PUTs the already nested tables/seats payload straight through", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }))
 
-    const chart: SeatingChartState = {
-      tables: [
-        {
-          id: "table-1",
-          classroom_id: classroomId,
-          table_number: 1,
-          seat_count: 2,
-          x_pos: 40,
-          y_pos: 60,
-        },
-      ],
-      assignments: { "table-1:1": "s1" },
+    const chart: z.infer<typeof seatingChartSchema> = {
+      tables: [{ x_pos: 40, y_pos: 60, seats: [null, "s1"] }],
     }
 
     await action(actionArgs(chart))

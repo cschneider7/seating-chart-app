@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest"
-import { TABLE_OFFSET, TABLE_SPACING } from "~/components/seating-chart-canvas"
 import type { Student, Table } from "~/lib/types"
 import {
+  buildInitialNodesAndEdges,
+  CONNECT_THRESHOLD,
   createTable,
+  deriveSeatingChartPayload,
+  findNearestSeat,
+  getConnectedStudentPosition,
+  getSeatCenter,
+  getSeatHandleSide,
+  getSeatId,
+  getSeatOffset,
   getUnassignedStudents,
-  seatingChartReducer,
-  type SeatingChartState,
+  SEAT_SIZE,
+  TABLE_OFFSET,
+  TABLE_SPACING,
+  type SeatAssignments,
+  type SeatingChartNode,
 } from "./seating-chart.state"
 
 function makeStudent(id: string): Student {
@@ -22,12 +33,6 @@ function makeTable(overrides: Partial<Table> = {}): Table {
     y_pos: 0,
     ...overrides,
   }
-}
-
-function makeState(
-  overrides: Partial<SeatingChartState> = {}
-): SeatingChartState {
-  return { tables: [], assignments: {}, ...overrides }
 }
 
 describe("createTable", () => {
@@ -59,246 +64,233 @@ describe("createTable", () => {
   })
 })
 
-describe("getUnassignedStudents", () => {
-  const students = [makeStudent("s1"), makeStudent("s2"), makeStudent("s3")]
-
-  it("returns everyone when there are no assignments", () => {
-    expect(getUnassignedStudents(students, {})).toEqual(students)
+describe("getSeatOffset / getSeatCenter / getSeatHandleSide", () => {
+  it("lays seats out in a 2-column grid", () => {
+    expect(getSeatHandleSide(0)).toBe("left")
+    expect(getSeatHandleSide(1)).toBe("right")
+    expect(getSeatHandleSide(2)).toBe("left")
+    expect(getSeatHandleSide(3)).toBe("right")
   })
 
-  it("excludes students who are seated anywhere", () => {
-    const result = getUnassignedStudents(students, {
-      "table-1:0": "s2",
-    })
+  it("advances to a new row every 2 seats", () => {
+    const seat0 = getSeatOffset(0)
+    const seat2 = getSeatOffset(2)
 
-    expect(result.map((s) => s.id)).toEqual(["s1", "s3"])
+    expect(seat2.y).toBeGreaterThan(seat0.y)
+    expect(seat2.x).toBe(seat0.x)
+  })
+
+  it("computes a seat's center relative to the table position", () => {
+    const center = getSeatCenter({ x: 100, y: 100 }, 0)
+    const offset = getSeatOffset(0)
+
+    expect(center.x).toBe(100 + offset.x + SEAT_SIZE / 2)
+    expect(center.y).toBe(100 + offset.y + SEAT_SIZE / 2)
   })
 })
 
-describe("seatingChartReducer", () => {
-  describe("ADD_TABLE", () => {
-    it("appends a table without touching existing tables or assignments", () => {
-      const existing = makeTable({ id: "table-1" })
-      const state = makeState({
-        tables: [existing],
-        assignments: { "table-1:0": "s1" },
-      })
+describe("getConnectedStudentPosition", () => {
+  it("snaps to a fixed offset outward from the seat's side", () => {
+    const leftSeat = getConnectedStudentPosition({ x: 0, y: 0 }, 0) // left side
+    const rightSeat = getConnectedStudentPosition({ x: 0, y: 0 }, 1) // right side
+    const leftCenter = getSeatCenter({ x: 0, y: 0 }, 0)
+    const rightCenter = getSeatCenter({ x: 0, y: 0 }, 1)
 
-      const next = seatingChartReducer(state, {
-        type: "ADD_TABLE",
-        classroomId: "c1",
-      })
+    expect(leftSeat.x).toBeLessThan(leftCenter.x)
+    expect(rightSeat.x).toBeGreaterThan(rightCenter.x)
+  })
+})
 
-      expect(next.tables).toHaveLength(2)
-      expect(next.tables[0]).toBe(existing)
-      expect(next.assignments).toEqual(state.assignments)
+describe("findNearestSeat", () => {
+  const tableNodes = [
+    { id: "a", position: { x: 0, y: 0 }, seatCount: 2 },
+    { id: "b", position: { x: 1000, y: 1000 }, seatCount: 2 },
+  ]
+
+  it("returns undefined when nothing is within threshold", () => {
+    const result = findNearestSeat(tableNodes, new Set(), { x: 5000, y: 5000 }, CONNECT_THRESHOLD)
+    expect(result).toBeUndefined()
+  })
+
+  it("returns the nearest seat within threshold", () => {
+    const center = getSeatCenter({ x: 0, y: 0 }, 0)
+    const result = findNearestSeat(tableNodes, new Set(), center, CONNECT_THRESHOLD)
+
+    expect(result).toEqual(
+      expect.objectContaining({ tableId: "a", seatIndex: 0, seatId: getSeatId("a", 0) })
+    )
+  })
+
+  it("excludes seats already present in occupiedSeatIds", () => {
+    const center = getSeatCenter({ x: 0, y: 0 }, 0)
+    const result = findNearestSeat(
+      tableNodes,
+      new Set([getSeatId("a", 0)]),
+      center,
+      CONNECT_THRESHOLD
+    )
+
+    expect(result).toBeUndefined()
+  })
+})
+
+describe("getUnassignedStudents", () => {
+  const students = [makeStudent("s1"), makeStudent("s2"), makeStudent("s3")]
+
+  it("returns everyone when no students are on the canvas", () => {
+    expect(getUnassignedStudents(students, [])).toEqual(students)
+  })
+
+  it("excludes a seated student", () => {
+    const nodes: SeatingChartNode[] = [
+      {
+        id: "s2",
+        type: "student",
+        position: { x: 0, y: 0 },
+        data: { student: makeStudent("s2") },
+      },
+    ]
+
+    expect(getUnassignedStudents(students, nodes).map((s) => s.id)).toEqual([
+      "s1",
+      "s3",
+    ])
+  })
+
+  it("excludes a floating (unconnected) student on the canvas", () => {
+    const nodes: SeatingChartNode[] = [
+      {
+        id: "s3",
+        type: "student",
+        position: { x: 40, y: 40 },
+        data: { student: makeStudent("s3") },
+      },
+    ]
+
+    expect(getUnassignedStudents(students, nodes).map((s) => s.id)).toEqual([
+      "s1",
+      "s2",
+    ])
+  })
+})
+
+describe("buildInitialNodesAndEdges", () => {
+  it("returns empty arrays when there are no tables or assignments", () => {
+    const { nodes, edges } = buildInitialNodesAndEdges([], {}, new Map())
+
+    expect(nodes).toEqual([])
+    expect(edges).toEqual([])
+  })
+
+  it("creates one table node per table at its persisted position", () => {
+    const tables = [makeTable({ id: "a", x_pos: 40, y_pos: 60 })]
+    const { nodes } = buildInitialNodesAndEdges(tables, {}, new Map())
+
+    expect(nodes).toEqual([
+      {
+        id: "a",
+        type: "table",
+        position: { x: 40, y: 60 },
+        data: { table: tables[0] },
+      },
+    ])
+  })
+
+  it("creates a student node and edge for each assignment, positioned at the seat", () => {
+    const tables = [makeTable({ id: "a", x_pos: 0, y_pos: 0 })]
+    const assignments: SeatAssignments = { "a:0": "s1" }
+    const studentsById = new Map([["s1", makeStudent("s1")]])
+
+    const { nodes, edges } = buildInitialNodesAndEdges(
+      tables,
+      assignments,
+      studentsById
+    )
+
+    const studentNode = nodes.find((n) => n.id === "s1")
+    expect(studentNode).toEqual({
+      id: "s1",
+      type: "student",
+      position: getConnectedStudentPosition({ x: 0, y: 0 }, 0),
+      data: { student: studentsById.get("s1") },
     })
+    expect(edges).toEqual([
+      { id: "a:0", source: "a", sourceHandle: "a:0", target: "s1" },
+    ])
+  })
 
-    it("places the new table using createTable(tables.length, classroomId)", () => {
-      const state = makeState({ tables: [makeTable(), makeTable()] })
+  it("does not create a node or edge for a student absent from assignments", () => {
+    const tables = [makeTable({ id: "a" })]
+    const { nodes, edges } = buildInitialNodesAndEdges(tables, {}, new Map())
 
-      const next = seatingChartReducer(state, {
-        type: "ADD_TABLE",
-        classroomId: "c1",
-      })
-      const expected = createTable(2, "c1")
+    expect(nodes).toEqual([
+      {
+        id: "a",
+        type: "table",
+        position: { x: 0, y: 0 },
+        data: { table: tables[0] },
+      },
+    ])
+    expect(edges).toEqual([])
+  })
+})
 
-      expect(next.tables[2].x_pos).toBe(expected.x_pos)
-      expect(next.tables[2].y_pos).toBe(expected.y_pos)
-      expect(next.tables[2].seat_count).toBe(expected.seat_count)
+describe("deriveSeatingChartPayload", () => {
+  it("builds a dense seats array per table from position and edges", () => {
+    const nodes: SeatingChartNode[] = [
+      {
+        id: "a",
+        type: "table",
+        position: { x: 40, y: 60 },
+        data: { table: makeTable({ id: "a", seat_count: 2 }) },
+      },
+    ]
+    const edges = [
+      { id: "a:1", source: "a", sourceHandle: "a:1", target: "s1" },
+    ]
+
+    const payload = deriveSeatingChartPayload(nodes, edges)
+
+    expect(payload).toEqual({
+      tables: [{ x_pos: 40, y_pos: 60, seats: [null, "s1"] }],
     })
   })
 
-  describe("REMOVE_TABLE", () => {
-    it("removes the table and any assignments for its seats", () => {
-      const tableA = makeTable({ id: "a" })
-      const tableB = makeTable({ id: "b" })
-      const state = makeState({
-        tables: [tableA, tableB],
-        assignments: { "a:0": "s1", "a:1": "s2", "b:0": "s3" },
-      })
+  it("never includes a floating (unconnected) student in the payload", () => {
+    const nodes: SeatingChartNode[] = [
+      {
+        id: "a",
+        type: "table",
+        position: { x: 0, y: 0 },
+        data: { table: makeTable({ id: "a", seat_count: 1 }) },
+      },
+      {
+        id: "s1",
+        type: "student",
+        position: { x: 500, y: 500 },
+        data: { student: makeStudent("s1") },
+      },
+    ]
 
-      const next = seatingChartReducer(state, {
-        type: "REMOVE_TABLE",
-        tableId: "a",
-      })
+    const payload = deriveSeatingChartPayload(nodes, [])
 
-      expect(next.tables).toEqual([tableB])
-      expect(next.assignments).toEqual({ "b:0": "s3" })
-    })
+    expect(payload).toEqual({ tables: [{ x_pos: 0, y_pos: 0, seats: [null] }] })
   })
 
-  describe("MOVE_TABLE_BY", () => {
-    it("adds the delta to only the matching table's x_pos/y_pos", () => {
-      const tableA = makeTable({ id: "a", x_pos: 100, y_pos: 100 })
-      const tableB = makeTable({ id: "b", x_pos: 200, y_pos: 200 })
-      const state = makeState({ tables: [tableA, tableB] })
+  it("round-trips with buildInitialNodesAndEdges", () => {
+    const tables = [makeTable({ id: "a", seat_count: 2, x_pos: 40, y_pos: 60 })]
+    const assignments: SeatAssignments = { "a:1": "s1" }
+    const studentsById = new Map([["s1", makeStudent("s1")]])
 
-      const next = seatingChartReducer(state, {
-        type: "MOVE_TABLE_BY",
-        tableId: "a",
-        deltaX: 20,
-        deltaY: -20,
-      })
+    const { nodes, edges } = buildInitialNodesAndEdges(
+      tables,
+      assignments,
+      studentsById
+    )
+    const payload = deriveSeatingChartPayload(nodes, edges)
 
-      expect(next.tables[0]).toEqual({ ...tableA, x_pos: 120, y_pos: 80 })
-      expect(next.tables[1]).toBe(tableB)
-    })
-  })
-
-  describe("SET_SEAT_COUNT", () => {
-    it("clamps below the minimum to 1", () => {
-      const state = makeState({ tables: [makeTable({ id: "a" })] })
-
-      const next = seatingChartReducer(state, {
-        type: "SET_SEAT_COUNT",
-        tableId: "a",
-        seatCount: -3,
-      })
-
-      expect(next.tables[0].seat_count).toBe(1)
-    })
-
-    it("clamps above the maximum to 12", () => {
-      const state = makeState({ tables: [makeTable({ id: "a" })] })
-
-      const next = seatingChartReducer(state, {
-        type: "SET_SEAT_COUNT",
-        tableId: "a",
-        seatCount: 99,
-      })
-
-      expect(next.tables[0].seat_count).toBe(12)
-    })
-
-    it("unassigns students in seats removed by shrinking, keeps the rest", () => {
-      const state = makeState({
-        tables: [makeTable({ id: "a", seat_count: 4 })],
-        assignments: { "a:0": "s1", "a:2": "s2", "a:3": "s3" },
-      })
-
-      const next = seatingChartReducer(state, {
-        type: "SET_SEAT_COUNT",
-        tableId: "a",
-        seatCount: 2,
-      })
-
-      expect(next.tables[0].seat_count).toBe(2)
-      expect(next.assignments).toEqual({ "a:0": "s1" })
-    })
-  })
-
-  describe("ASSIGN_STUDENT", () => {
-    it("assigns a student from the roster to an empty seat", () => {
-      const state = makeState()
-
-      const next = seatingChartReducer(state, {
-        type: "ASSIGN_STUDENT",
-        studentId: "s1",
-        seatId: "a:0",
-      })
-
-      expect(next.assignments).toEqual({ "a:0": "s1" })
-    })
-
-    it("moves a seated student to a different empty seat", () => {
-      const state = makeState({ assignments: { "a:0": "s1" } })
-
-      const next = seatingChartReducer(state, {
-        type: "ASSIGN_STUDENT",
-        studentId: "s1",
-        seatId: "a:1",
-      })
-
-      expect(next.assignments).toEqual({ "a:1": "s1" })
-    })
-
-    it("swaps two students when dragged onto each other's seats", () => {
-      const state = makeState({
-        assignments: { "a:0": "s1", "a:1": "s2" },
-      })
-
-      const next = seatingChartReducer(state, {
-        type: "ASSIGN_STUDENT",
-        studentId: "s1",
-        seatId: "a:1",
-      })
-
-      expect(next.assignments).toEqual({ "a:0": "s2", "a:1": "s1" })
-    })
-
-    it("drops the displaced student back to the roster when assigning from the roster onto an occupied seat", () => {
-      const state = makeState({ assignments: { "a:0": "s2" } })
-
-      const next = seatingChartReducer(state, {
-        type: "ASSIGN_STUDENT",
-        studentId: "s1",
-        seatId: "a:0",
-      })
-
-      expect(next.assignments).toEqual({ "a:0": "s1" })
-    })
-
-    it("is a no-op when dropped back onto the student's own seat", () => {
-      const state = makeState({ assignments: { "a:0": "s1" } })
-
-      const next = seatingChartReducer(state, {
-        type: "ASSIGN_STUDENT",
-        studentId: "s1",
-        seatId: "a:0",
-      })
-
-      expect(next).toBe(state)
-    })
-  })
-
-  describe("UNASSIGN_STUDENT", () => {
-    it("removes only the given student's seat assignment", () => {
-      const state = makeState({
-        assignments: { "a:0": "s1", "a:1": "s2" },
-      })
-
-      const next = seatingChartReducer(state, {
-        type: "UNASSIGN_STUDENT",
-        studentId: "s1",
-      })
-
-      expect(next.assignments).toEqual({ "a:1": "s2" })
-    })
-  })
-
-  describe("UNASSIGN_ALL", () => {
-    it("clears every seat assignment but leaves tables untouched", () => {
-      const tables = [makeTable({ id: "a" })]
-      const state = makeState({
-        tables,
-        assignments: { "a:0": "s1", "a:1": "s2" },
-      })
-
-      const next = seatingChartReducer(state, { type: "UNASSIGN_ALL" })
-
-      expect(next.assignments).toEqual({})
-      expect(next.tables).toBe(tables)
-    })
-  })
-
-  describe("REVERT_CHANGES", () => {
-    it("replaces both tables and assignments wholesale, discarding unsaved edits", () => {
-      const state = makeState({
-        tables: [makeTable({ id: "unsaved-table" })],
-        assignments: { "unsaved-table:0": "s1" },
-      })
-      const revertTables = [makeTable({ id: "persisted-table" })]
-      const revertAssignments = { "persisted-table:0": "s2" }
-
-      const next = seatingChartReducer(state, {
-        type: "REVERT_CHANGES",
-        tables: revertTables,
-        assignments: revertAssignments,
-      })
-
-      expect(next.tables).toBe(revertTables)
-      expect(next.assignments).toBe(revertAssignments)
+    expect(payload).toEqual({
+      tables: [{ x_pos: 40, y_pos: 60, seats: [null, "s1"] }],
     })
   })
 })

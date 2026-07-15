@@ -1,7 +1,6 @@
-import { RestrictToWindow } from "@dnd-kit/dom/modifiers"
-import { DragDropProvider } from "@dnd-kit/react"
+import { useEdgesState, useNodesState } from "@xyflow/react"
 import { Plus } from "lucide-react"
-import { useMemo, useReducer, useState } from "react"
+import { useMemo, useState } from "react"
 import { useFetcher } from "react-router"
 import * as z from "zod"
 import {
@@ -20,13 +19,12 @@ import {
 import type { seatingChartSchema } from "~/lib/schemas"
 import type { Route } from "./+types/classroom"
 import {
+  buildInitialNodesAndEdges,
   createTable,
+  deriveSeatingChartPayload,
   getSeatId,
   getUnassignedStudents,
-  seatingChartReducer,
   type SeatAssignments,
-  type SeatingChartActionData,
-  type SeatingChartState,
 } from "./seating-chart.state"
 
 export function meta({}: Route.MetaArgs) {
@@ -54,19 +52,7 @@ export async function loader({ params }: Route.ClientLoaderArgs) {
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
-  const data: SeatingChartState = await request.json()
-
-  const chart: z.infer<typeof seatingChartSchema> = {
-    tables: data.tables.map((table) => ({
-      x_pos: table.x_pos,
-      y_pos: table.y_pos,
-      seats: Array.from(
-        { length: table.seat_count },
-        (_, seatIndex) =>
-          data.assignments[getSeatId(table.id, seatIndex)] ?? null
-      ),
-    })),
-  }
+  const chart: z.infer<typeof seatingChartSchema> = await request.json()
 
   await updateSeatingChart(params.classroomId, chart)
 
@@ -78,30 +64,56 @@ export default function Component({ loaderData }: Route.ComponentProps) {
 
   const [locked, setLocked] = useState(true)
 
-  const initialChart = {
-    tables: tables,
-    assignments: assignments,
-  }
-  const [chart, dispatch] = useReducer(seatingChartReducer, initialChart)
-  const fetcher = useFetcher()
-
   const studentsById = useMemo(
     () => new Map(students.map((s) => [s.id, s])),
     [students]
   )
+
+  const initial = useMemo(
+    () => buildInitialNodesAndEdges(tables, assignments, studentsById),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  )
+  const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes)
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges)
+
+  const fetcher = useFetcher()
+
   const unassigned = useMemo(
-    () => getUnassignedStudents(students, chart.assignments),
-    [students, chart.assignments]
+    () => getUnassignedStudents(students, nodes),
+    [students, nodes]
   )
 
   function handleSave() {
-    fetcher.submit(chart, { method: "post", encType: "application/json" })
+    const payload = deriveSeatingChartPayload(nodes, edges)
+    fetcher.submit(payload, { method: "post", encType: "application/json" })
     setLocked(true)
   }
 
   function handleCancel() {
-    dispatch({ type: "REVERT_CHANGES", tables, assignments })
+    const reverted = buildInitialNodesAndEdges(tables, assignments, studentsById)
+    setNodes(reverted.nodes)
+    setEdges(reverted.edges)
     setLocked(true)
+  }
+
+  function handleAddTable() {
+    const tableCount = nodes.filter((n) => n.type === "table").length
+    const table = createTable(tableCount, classroom.id)
+    setNodes((nds) => [
+      ...nds,
+      {
+        id: table.id,
+        type: "table",
+        position: { x: table.x_pos, y: table.y_pos },
+        data: { table },
+      },
+    ])
+  }
+
+  function handleUnassignAll() {
+    setEdges([])
+    setNodes((nds) => nds.filter((n) => n.type !== "student"))
   }
 
   return (
@@ -133,70 +145,28 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         <Button
           variant="secondary"
           disabled={locked}
-          onClick={() =>
-            dispatch({ type: "ADD_TABLE", classroomId: classroom.id })
-          }
+          onClick={handleAddTable}
         >
           <Plus />
           <span>Add table</span>
         </Button>
-        <Button
-          disabled={locked}
-          variant="destructive"
-          onClick={() => dispatch({ type: "UNASSIGN_ALL" })}
-        >
+        <Button disabled={locked} variant="destructive" onClick={handleUnassignAll}>
           Unassign All
         </Button>
       </div>
-      <DragDropProvider<SeatingChartActionData>
-        onDragEnd={(event) => {
-          if (event.canceled) {
-            return
-          }
-
-          const { source, target } = event.operation
-          if (!source?.data) {
-            return
-          }
-
-          const sourceData = source.data
-          if (sourceData.kind === "table") {
-            const { x, y } = event.operation.transform
-            dispatch({
-              type: "MOVE_TABLE_BY",
-              tableId: sourceData.tableId,
-              deltaX: x,
-              deltaY: y,
-            })
-          } else if (sourceData.kind === "student") {
-            const targetData = target?.data
-            if (targetData?.kind === "seat") {
-              dispatch({
-                type: "ASSIGN_STUDENT",
-                studentId: sourceData.studentId,
-                seatId: targetData.seatId,
-              })
-            } else {
-              dispatch({
-                type: "UNASSIGN_STUDENT",
-                studentId: sourceData.studentId,
-              })
-            }
-          }
-        }}
-        modifiers={[RestrictToWindow]}
-      >
-        <div className="flex min-h-0 w-full flex-1 gap-4">
-          <RosterPanel students={unassigned} locked={locked} />
-          <SeatingChartCanvas
-            tables={chart.tables}
-            studentsById={studentsById}
-            assignments={chart.assignments}
-            locked={locked}
-            dispatch={dispatch}
-          />
-        </div>
-      </DragDropProvider>
+      <div className="flex min-h-0 w-full flex-1 gap-4">
+        <RosterPanel students={unassigned} locked={locked} />
+        <SeatingChartCanvas
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          setNodes={setNodes}
+          setEdges={setEdges}
+          locked={locked}
+          studentsById={studentsById}
+        />
+      </div>
     </div>
   )
 }
