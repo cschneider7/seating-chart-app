@@ -52,7 +52,10 @@ function studentCenter(node: SeatingChartNode): Point {
 
 // Every occupied seat except the dragged student's own current one - a
 // student re-approaching their own seat must still see it as available.
-function getOccupiedSeatIds(edges: Edge[], draggedStudentId: string): Set<string> {
+function getOccupiedSeatIds(
+  edges: Edge[],
+  draggedStudentId: string
+): Set<string> {
   return new Set(
     edges
       .filter((e) => e.target !== draggedStudentId)
@@ -175,54 +178,95 @@ function SeatingChartCanvasInner({
 
   const onNodeDrag: OnNodeDrag<SeatingChartNode> = useCallback(
     (_, node) => {
-      if (node.type !== "student") {
-        return
-      }
+      switch (node.type) {
+        case "table": {
+          const connectedEdges = edges.filter(
+            (e) => e.source === node.id && !e.hidden
+          )
+          if (connectedEdges.length === 0) {
+            return
+          }
+          setNodes((nds) =>
+            nds.map((n) => {
+              const edge = connectedEdges.find((e) => e.target === n.id)
+              if (!edge) {
+                return n
+              }
+              const seat = findOwnSeat(edge, [node])
+              if (!seat) {
+                return n
+              }
+              return {
+                ...n,
+                position: getConnectedStudentPosition(
+                  node.position,
+                  seat.side,
+                  seat.indexInSide,
+                  node.width,
+                  node.height
+                ),
+              }
+            })
+          )
+          return
+        }
 
-      const tableNodes = nodes.filter(
-        (n): n is SeatingChartTableNode => n.type === "table"
-      )
-      const center = studentCenter(node)
-      const candidate = findNearestSeat(
-        tableNodes,
-        getOccupiedSeatIds(edges, node.id),
-        center,
-        CONNECT_THRESHOLD
-      )
+        case "student": {
+          const tableNodes = nodes.filter(
+            (n): n is SeatingChartTableNode => n.type === "table"
+          )
+          const center = studentCenter(node)
+          const candidate = findNearestSeat(
+            tableNodes,
+            getOccupiedSeatIds(edges, node.id),
+            center,
+            CONNECT_THRESHOLD
+          )
 
-      setEdges((es) => {
-        const nextEdges = es
-          .filter((e) => e.className !== "temp")
-          .map((e) => {
-            if (e.target !== node.id) {
-              return e
+          setEdges((es) => {
+            const nextEdges = es
+              .filter((e) => e.className !== "temp")
+              .map((e) => {
+                if (e.target !== node.id) {
+                  return e
+                }
+                const ownSeat = findOwnSeat(e, tableNodes)
+                const dist = ownSeat
+                  ? Math.hypot(
+                      center.x - ownSeat.center.x,
+                      center.y - ownSeat.center.y
+                    )
+                  : undefined
+                const hidden = dist !== undefined && dist > DISCONNECT_THRESHOLD
+                return e.hidden === hidden ? e : { ...e, hidden }
+              })
+
+            if (
+              candidate &&
+              !nextEdges.some((e) => e.id === candidate.seatId)
+            ) {
+              nextEdges.push({
+                id: candidate.seatId,
+                source: candidate.tableId,
+                sourceHandle: candidate.seatId,
+                target: node.id,
+                targetHandle: getStudentHandleId(
+                  node.id,
+                  getOppositeSide(candidate.side)
+                ),
+                className: "temp",
+              })
             }
-            const ownSeat = findOwnSeat(e, tableNodes)
-            const dist = ownSeat
-              ? Math.hypot(center.x - ownSeat.center.x, center.y - ownSeat.center.y)
-              : undefined
-            const hidden = dist !== undefined && dist > DISCONNECT_THRESHOLD
-            return e.hidden === hidden ? e : { ...e, hidden }
-          })
 
-        if (candidate && !nextEdges.some((e) => e.id === candidate.seatId)) {
-          nextEdges.push({
-            id: candidate.seatId,
-            source: candidate.tableId,
-            sourceHandle: candidate.seatId,
-            target: node.id,
-            targetHandle: getStudentHandleId(
-              node.id,
-              getOppositeSide(candidate.side)
-            ),
-            className: "temp",
+            return nextEdges
           })
         }
 
-        return nextEdges
-      })
+        default:
+          return
+      }
     },
-    [nodes, edges, setEdges]
+    [nodes, edges, setNodes, setEdges]
   )
 
   const onNodeDragStop: OnNodeDrag<SeatingChartNode> = useCallback(
