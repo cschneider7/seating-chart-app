@@ -9,13 +9,12 @@ export const TABLES_PER_ROW = 4
 export const TABLE_SPACING = GRID_STEP * 13
 export const TABLE_OFFSET = GRID_STEP * 2
 
-export const SEAT_GAP = 12 // matches existing `gap-3`
-export const STUDENT_NODE_SIZE = 96
+export const STUDENT_NODE_SIZE = 75 // 75% of CELL - a TableNode's base seat-spacing unit
 export const SEAT_CONNECT_DISTANCE = GRID_STEP // gap between table edge and a connected StudentNode
 export const CONNECT_THRESHOLD = GRID_STEP * 4 // 80px - triggers auto-connect
 export const DISCONNECT_THRESHOLD = GRID_STEP * 6 // 120px - hysteresis band
 
-export const CELL = STUDENT_NODE_SIZE + SEAT_GAP // 108 - spacing unit along a side
+export const CELL = 100 // spacing unit along a side / a TableNode's base size, independent of STUDENT_NODE_SIZE
 export const MIN_TABLE_SIZE = CELL // 1 seat/side, 4 total
 export const MAX_TABLE_SIZE = CELL * 3 // 3 seats/side, 12 total
 

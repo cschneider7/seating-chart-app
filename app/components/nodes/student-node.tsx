@@ -12,6 +12,7 @@ import { Button } from "~/components/ui/button"
 import { Item } from "~/components/ui/item"
 import {
   getStudentHandleId,
+  STUDENT_NODE_SIZE,
   type SeatingChartNode,
   type StudentNodeData,
 } from "~/routes/classrooms/seating-chart.state"
@@ -30,6 +31,7 @@ const SIDE_TO_POSITION = {
 export function StudentNode({
   id,
   data,
+  selected,
 }: NodeProps<Node<StudentNodeData, "student">>) {
   const locked = useContext(LockedContext)
   const { setNodes, setEdges } = useReactFlow<SeatingChartNode, Edge>()
@@ -38,6 +40,7 @@ export function StudentNode({
   const connectedHandleId = edges.find(
     (e) => e.target === id && !e.hidden
   )?.targetHandle
+  const showSelectedUi = !!selected && !locked
 
   function handleDelete() {
     setNodes((nds) => nds.filter((n) => n.id !== id))
@@ -45,7 +48,10 @@ export function StudentNode({
   }
 
   return (
-    <BaseNode className="cursor-grab touch-none select-none active:cursor-grabbing">
+    <BaseNode
+      style={{ width: STUDENT_NODE_SIZE, height: STUDENT_NODE_SIZE }}
+      className="cursor-grab touch-none select-none active:cursor-grabbing"
+    >
       {(["top", "right", "bottom", "left"] as const).map((side) => {
         const handleId = getStudentHandleId(id, side)
         if (connectedHandleId && handleId !== connectedHandleId) {
@@ -61,12 +67,11 @@ export function StudentNode({
         )
       })}
       <Item
-        variant="outline"
         size="xs"
-        className="relative aspect-square w-24 shrink-0 overflow-hidden"
+        className="relative size-full gap-1 overflow-hidden p-1.5 **:data-[slot=item-title]:text-[10px]"
       >
         <StudentCardContent student={data.student} />
-        {!locked ? (
+        {showSelectedUi ? (
           <Button
             type="button"
             variant="ghost"
