@@ -235,6 +235,32 @@ export function findNearestSeat(
   return seat
 }
 
+// Which of a table's existing seat-edge sourceHandles are no longer valid
+// seats at a new (width, height) - e.g. after shrinking the table.
+export function getOrphanedSeatHandleIds(
+  tableId: string,
+  edges: Edge[],
+  newWidth: number,
+  newHeight: number
+): Set<string> {
+  const { seatsPerRow, seatsPerCol } = getSeatsPerSide(newWidth, newHeight)
+  const validHandleIds = new Set(
+    getCanonicalSeatOrder(seatsPerRow, seatsPerCol).map(({ side, indexInSide }) =>
+      getSeatHandleId(tableId, side, indexInSide)
+    )
+  )
+  return new Set(
+    edges
+      .filter(
+        (e): e is Edge & { sourceHandle: string } =>
+          e.source === tableId &&
+          !!e.sourceHandle &&
+          !validHandleIds.has(e.sourceHandle)
+      )
+      .map((e) => e.sourceHandle)
+  )
+}
+
 // Load-time canonical size reconstruction: the tables table has no
 // width/height column (out of scope to add - see plan), so a table snaps to
 // this canonical default size for its saved seat_count on load. Seat count

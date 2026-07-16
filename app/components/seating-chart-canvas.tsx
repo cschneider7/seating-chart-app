@@ -1,7 +1,6 @@
 import {
   addEdge,
   Background,
-  BackgroundVariant,
   Controls,
   ReactFlow,
   ReactFlowProvider,
@@ -31,7 +30,6 @@ import {
   getSeatHandleId,
   getSeatsPerSide,
   getStudentHandleId,
-  GRID_STEP,
   STUDENT_NODE_SIZE,
   type Point,
   type SeatingChartNode,
