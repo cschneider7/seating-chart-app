@@ -1,33 +1,23 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+import { makeArgs, stubFetch } from "~/lib/test-utils"
 import { action } from "./edit-classroom"
 
 const classroomId = "classroom-1"
 
-function actionArgs(body: unknown) {
-  return {
-    request: new Request(`http://test/classrooms/${classroomId}/edit`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+const args = (body: unknown) =>
+  makeArgs(`http://test/classrooms/${classroomId}/edit`, {
+    method: "POST",
     params: { classroomId },
-    context: {},
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any
-}
+    body,
+  })
+
+stubFetch()
 
 describe("edit-classroom action", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn())
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it("updates the classroom and redirects to its detail page", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }))
 
-    const result = await action(actionArgs({ subject: "Algebra" }))
+    const result = await action(args({ subject: "Algebra" }))
 
     expect(fetch).toHaveBeenCalledTimes(1)
     const [url, init] = vi.mocked(fetch).mock.calls[0]
@@ -42,7 +32,7 @@ describe("edit-classroom action", () => {
   })
 
   it("returns validation errors and never calls fetch for an invalid payload", async () => {
-    const result = await action(actionArgs({ period: -1 }))
+    const result = await action(args({ period: -1 }))
 
     expect(fetch).not.toHaveBeenCalled()
     expect(result).not.toBeInstanceOf(Response)
@@ -54,6 +44,6 @@ describe("edit-classroom action", () => {
       new Response(null, { status: 500, statusText: "Internal Server Error" })
     )
 
-    await expect(action(actionArgs({ subject: "Algebra" }))).rejects.toThrow()
+    await expect(action(args({ subject: "Algebra" }))).rejects.toThrow()
   })
 })

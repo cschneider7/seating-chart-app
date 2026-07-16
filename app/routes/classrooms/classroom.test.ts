@@ -1,45 +1,31 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 import type * as z from "zod"
 import type { seatingChartSchema } from "~/lib/schemas"
+import { makeArgs, stubFetch } from "~/lib/test-utils"
 import type { Classroom, SeatAssignment, Student, Table } from "~/lib/types"
 import { action, loader } from "./classroom"
 
 const classroomId = "classroom-1"
 
-function loaderArgs() {
-  return {
-    request: new Request(`http://test/classrooms/${classroomId}`),
+const loaderArgs = () =>
+  makeArgs(`http://test/classrooms/${classroomId}`, {
     params: { classroomId },
-    context: {},
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any
-}
+  })
 
-function actionArgs(body: unknown) {
-  return {
-    request: new Request(`http://test/classrooms/${classroomId}`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+const actionArgs = (body: unknown) =>
+  makeArgs(`http://test/classrooms/${classroomId}`, {
+    method: "POST",
     params: { classroomId },
-    context: {},
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any
-}
+    body,
+  })
 
 function jsonResponse(data: unknown) {
   return new Response(JSON.stringify({ data }), { status: 200 })
 }
 
+stubFetch()
+
 describe("classroom loader", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn())
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it("loads the classroom, its tables, its students, and its seat assignments", async () => {
     const classroom: Classroom = {
       id: classroomId,
@@ -112,14 +98,6 @@ describe("classroom loader", () => {
 })
 
 describe("classroom action", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn())
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it("PUTs the already nested tables/seats payload straight through", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }))
 
