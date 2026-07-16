@@ -1,6 +1,11 @@
-import { useEdgesState, useNodesState } from "@xyflow/react"
+import {
+  applyEdgeChanges,
+  applyNodeChanges,
+  type OnEdgesChange,
+  type OnNodesChange,
+} from "@xyflow/react"
 import { Plus } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { useFetcher } from "react-router"
 import * as z from "zod"
 import {
@@ -20,11 +25,13 @@ import type { seatingChartSchema } from "~/lib/schemas"
 import type { Route } from "./+types/classroom"
 import {
   buildInitialNodesAndEdges,
+  CELL,
   createTable,
   deriveSeatingChartPayload,
   getSeatId,
   getUnassignedStudents,
   type SeatAssignments,
+  type SeatingChartNode,
 } from "./seating-chart.state"
 
 export function meta({}: Route.MetaArgs) {
@@ -74,8 +81,19 @@ export default function Component({ loaderData }: Route.ComponentProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   )
-  const [nodes, setNodes, onNodesChange] = useNodesState(initial.nodes)
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initial.edges)
+
+  const [nodes, setNodes] = useState(initial.nodes)
+  const [edges, setEdges] = useState(initial.edges)
+  const onNodesChange: OnNodesChange<SeatingChartNode> = useCallback(
+    (changes) =>
+      setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
+    []
+  )
+  const onEdgesChange: OnEdgesChange = useCallback(
+    (changes) =>
+      setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
+    []
+  )
 
   const fetcher = useFetcher()
 
@@ -85,13 +103,20 @@ export default function Component({ loaderData }: Route.ComponentProps) {
   )
 
   function handleSave() {
+    setNodes((nds) =>
+      nds.map((n) => (n.selected ? { ...n, selected: false } : n))
+    )
     const payload = deriveSeatingChartPayload(nodes, edges)
     fetcher.submit(payload, { method: "post", encType: "application/json" })
     setLocked(true)
   }
 
   function handleCancel() {
-    const reverted = buildInitialNodesAndEdges(tables, assignments, studentsById)
+    const reverted = buildInitialNodesAndEdges(
+      tables,
+      assignments,
+      studentsById
+    )
     setNodes(reverted.nodes)
     setEdges(reverted.edges)
     setLocked(true)
@@ -106,6 +131,8 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         id: table.id,
         type: "table",
         position: { x: table.x_pos, y: table.y_pos },
+        width: CELL,
+        height: CELL,
         data: { table },
       },
     ])
@@ -142,15 +169,15 @@ export default function Component({ loaderData }: Route.ComponentProps) {
             </Button>
           </>
         )}
-        <Button
-          variant="secondary"
-          disabled={locked}
-          onClick={handleAddTable}
-        >
+        <Button variant="secondary" disabled={locked} onClick={handleAddTable}>
           <Plus />
           <span>Add table</span>
         </Button>
-        <Button disabled={locked} variant="destructive" onClick={handleUnassignAll}>
+        <Button
+          disabled={locked}
+          variant="destructive"
+          onClick={handleUnassignAll}
+        >
           Unassign All
         </Button>
       </div>

@@ -4,36 +4,64 @@ import type { seatingChartSchema } from "~/lib/schemas"
 import type { Student, Table } from "~/lib/types"
 
 export const GRID_STEP = 20
-export const DEFAULT_SEAT_COUNT = 4
-export const MIN_SEAT_COUNT = 1
-export const MAX_SEAT_COUNT = 12
+export const DEFAULT_SEAT_COUNT = 4 // seeds the vestigial Table.seat_count field on creation only
 export const TABLES_PER_ROW = 4
 export const TABLE_SPACING = GRID_STEP * 13
 export const TABLE_OFFSET = GRID_STEP * 2
 
-export const SEATS_PER_ROW = 2
-export const SEAT_SIZE = 96 // matches existing `size-24` seat/chip boxes
 export const SEAT_GAP = 12 // matches existing `gap-3`
-export const TABLE_PADDING = 16
-export const TABLE_HEADER_HEIGHT = 48 // BaseNodeHeader is pinned to h-12 so this is exact
 export const STUDENT_NODE_SIZE = 96
-export const SEAT_CONNECT_DISTANCE = 40 // gap between table edge and a connected StudentNode
-export const CONNECT_THRESHOLD = GRID_STEP * 3 // 60px - triggers auto-connect
-export const DISCONNECT_THRESHOLD = GRID_STEP * 5 // 100px - hysteresis band
+export const SEAT_CONNECT_DISTANCE = GRID_STEP // gap between table edge and a connected StudentNode
+export const CONNECT_THRESHOLD = GRID_STEP * 4 // 80px - triggers auto-connect
+export const DISCONNECT_THRESHOLD = GRID_STEP * 6 // 120px - hysteresis band
+
+export const CELL = STUDENT_NODE_SIZE + SEAT_GAP // 108 - spacing unit along a side
+export const MIN_TABLE_SIZE = CELL // 1 seat/side, 4 total
+export const MAX_TABLE_SIZE = CELL * 3 // 3 seats/side, 12 total
 
 export type Point = { x: number; y: number }
+export type Side = "top" | "right" | "bottom" | "left"
 
 export type TableNodeData = { table: Table }
 export type StudentNodeData = { student: Student }
 
 export type SeatAssignments = Record<string, string /* studentId */>
 
+// Flat, backend/loader-boundary key only (matches SeatAssignment.position).
+// See getSeatHandleId/parseSeatHandleId for the in-session seat identity.
 export function getSeatId(tableId: string, seatIndex: number): string {
   return `${tableId}:${seatIndex}`
 }
 
-export function parseSeatIndex(seatId: string | null | undefined): number {
-  return Number(seatId?.split(":")[1])
+// Side-qualified seat identity, stable under independent per-side resize -
+// growing/shrinking one side never renumbers another side's seats, unlike a
+// flat sequential index would.
+export function getSeatHandleId(
+  tableId: string,
+  side: Side,
+  indexInSide: number
+): string {
+  return `${tableId}:${side}:${indexInSide}`
+}
+
+// A StudentNode has one target handle per side, named for the side it faces
+// - used as an edge's targetHandle so the connecting line enters from the
+// side actually facing the table, not always the first-declared handle.
+export function getStudentHandleId(studentId: string, side: Side): string {
+  return `${studentId}:${side}`
+}
+
+export function getOppositeSide(side: Side): Side {
+  switch (side) {
+    case "top":
+      return "bottom"
+    case "bottom":
+      return "top"
+    case "left":
+      return "right"
+    case "right":
+      return "left"
+  }
 }
 
 export function createTable(index: number, classroomId: string): Table {
@@ -49,83 +77,188 @@ export function createTable(index: number, classroomId: string): Table {
   }
 }
 
-export function getSeatOffset(seatIndex: number): Point {
-  const col = seatIndex % SEATS_PER_ROW
-  const row = Math.floor(seatIndex / SEATS_PER_ROW)
+export function getSeatsPerSide(
+  width: number,
+  height: number
+): { seatsPerRow: number; seatsPerCol: number } {
   return {
-    x: TABLE_PADDING + col * (SEAT_SIZE + SEAT_GAP),
-    y: TABLE_HEADER_HEIGHT + TABLE_PADDING + row * (SEAT_SIZE + SEAT_GAP),
+    seatsPerRow: Math.max(1, Math.floor(width / CELL)), // top & bottom, symmetric
+    seatsPerCol: Math.max(1, Math.floor(height / CELL)), // left & right, symmetric
   }
 }
 
-export function getSeatCenter(position: Point, seatIndex: number): Point {
-  const offset = getSeatOffset(seatIndex)
-  return {
-    x: position.x + offset.x + SEAT_SIZE / 2,
-    y: position.y + offset.y + SEAT_SIZE / 2,
+// `count` fixed-CELL-wide slots, centered as a group within [0, extent].
+function getSideSlotCenters(count: number, extent: number): number[] {
+  const margin = (extent - count * CELL) / 2
+  return Array.from({ length: count }, (_, i) => margin + i * CELL + CELL / 2)
+}
+
+// Local offset (relative to the table's own top-left) of a seat's border
+// point - there's no interior seat box anymore, so this sits exactly on the
+// card's edge, not the center of a 96x96 box like the old grid layout did.
+export function getSeatSideAndOffset(
+  side: Side,
+  indexInSide: number,
+  width: number,
+  height: number
+): Point {
+  const { seatsPerRow, seatsPerCol } = getSeatsPerSide(width, height)
+  const xs = getSideSlotCenters(seatsPerRow, width)
+  const ys = getSideSlotCenters(seatsPerCol, height)
+  switch (side) {
+    case "top":
+      return { x: xs[indexInSide], y: 0 }
+    case "bottom":
+      return { x: xs[indexInSide], y: height }
+    case "left":
+      return { x: 0, y: ys[indexInSide] }
+    case "right":
+      return { x: width, y: ys[indexInSide] }
   }
 }
 
-// Which side of the TableNode a seat's Handle renders on - left column seats
-// point left, right column seats point right (matches grid-cols-2).
-export function getSeatHandleSide(seatIndex: number): "left" | "right" {
-  return seatIndex % SEATS_PER_ROW === 0 ? "left" : "right"
+export function getSeatCenter(
+  tablePosition: Point,
+  side: Side,
+  indexInSide: number,
+  width: number,
+  height: number
+): Point {
+  const local = getSeatSideAndOffset(side, indexInSide, width, height)
+  return { x: tablePosition.x + local.x, y: tablePosition.y + local.y }
 }
 
 // Fixed snapped top-left position for a StudentNode connected to this seat -
-// a constant distance outward from the seat's edge, on the handle's side.
+// a constant distance outward from the seat's border point, on its side.
+// Called with tablePosition={x:0,y:0} to get a pure local offset (used for
+// the selected-state "Empty" placeholders inside TableNode).
 export function getConnectedStudentPosition(
   tablePosition: Point,
-  seatIndex: number
+  side: Side,
+  indexInSide: number,
+  width: number,
+  height: number
 ): Point {
-  const center = getSeatCenter(tablePosition, seatIndex)
-  const side = getSeatHandleSide(seatIndex)
-  const x =
-    side === "left"
-      ? center.x - SEAT_SIZE / 2 - SEAT_CONNECT_DISTANCE - STUDENT_NODE_SIZE
-      : center.x + SEAT_SIZE / 2 + SEAT_CONNECT_DISTANCE
-  return { x, y: center.y - STUDENT_NODE_SIZE / 2 }
+  const anchor = getSeatCenter(tablePosition, side, indexInSide, width, height)
+  const push = SEAT_CONNECT_DISTANCE + STUDENT_NODE_SIZE / 2
+  const center =
+    side === "top"
+      ? { x: anchor.x, y: anchor.y - push }
+      : side === "bottom"
+        ? { x: anchor.x, y: anchor.y + push }
+        : side === "left"
+          ? { x: anchor.x - push, y: anchor.y }
+          : { x: anchor.x + push, y: anchor.y }
+  return {
+    x: center.x - STUDENT_NODE_SIZE / 2,
+    y: center.y - STUDENT_NODE_SIZE / 2,
+  }
 }
 
-export interface TableNodeLike {
+// Shared clockwise walk: top left->right, right top->bottom, bottom
+// right->left, left bottom->top. Used both to flatten seats to the backend's
+// flat position index (deriveSeatingChartPayload) and to reconstruct
+// (side, indexInSide) from a loaded flat position (buildInitialNodesAndEdges).
+export function getCanonicalSeatOrder(
+  seatsPerRow: number,
+  seatsPerCol: number
+): { side: Side; indexInSide: number }[] {
+  const order: { side: Side; indexInSide: number }[] = []
+  for (let i = 0; i < seatsPerRow; i++)
+    order.push({ side: "top", indexInSide: i })
+  for (let i = 0; i < seatsPerCol; i++)
+    order.push({ side: "right", indexInSide: i })
+  for (let i = seatsPerRow - 1; i >= 0; i--)
+    order.push({ side: "bottom", indexInSide: i })
+  for (let i = seatsPerCol - 1; i >= 0; i--)
+    order.push({ side: "left", indexInSide: i })
+  return order
+}
+
+type SeatTargetTable = {
   id: string
   position: Point
-  seatCount: number
+  width: number
+  height: number
 }
 
-// Finds the nearest seat (across all tables) to `point` within `threshold`,
-// excluding any seat already present in `occupiedSeatIds` - swapping/
-// displacing an existing occupant isn't implemented, so an occupied seat is
-// simply never offered as a connection candidate.
+// Nearest unoccupied seat (by seat-center distance) across all tables, or
+// undefined if none qualify within `threshold`.
 export function findNearestSeat(
-  tableNodes: TableNodeLike[],
+  tableNodes: SeatTargetTable[],
   occupiedSeatIds: Set<string>,
   point: Point,
   threshold: number
-): { tableId: string; seatIndex: number; seatId: string } | undefined {
+):
+  | { tableId: string; side: Side; indexInSide: number; seatId: string }
+  | undefined {
   let best:
-    | { tableId: string; seatIndex: number; seatId: string; dist: number }
+    | {
+        tableId: string
+        side: Side
+        indexInSide: number
+        seatId: string
+        dist: number
+      }
     | undefined
+
   for (const table of tableNodes) {
-    for (let seatIndex = 0; seatIndex < table.seatCount; seatIndex++) {
-      const seatId = getSeatId(table.id, seatIndex)
+    const { seatsPerRow, seatsPerCol } = getSeatsPerSide(
+      table.width,
+      table.height
+    )
+    for (const { side, indexInSide } of getCanonicalSeatOrder(
+      seatsPerRow,
+      seatsPerCol
+    )) {
+      const seatId = getSeatHandleId(table.id, side, indexInSide)
       if (occupiedSeatIds.has(seatId)) {
         continue
       }
-      const center = getSeatCenter(table.position, seatIndex)
-      const dist = Math.hypot(center.x - point.x, center.y - point.y)
+      const center = getSeatCenter(
+        table.position,
+        side,
+        indexInSide,
+        table.width,
+        table.height
+      )
+      const dist = Math.hypot(point.x - center.x, point.y - center.y)
       if (dist <= threshold && (!best || dist < best.dist)) {
-        best = { tableId: table.id, seatIndex, seatId, dist }
+        best = { tableId: table.id, side, indexInSide, seatId, dist }
       }
     }
   }
-  return best
+
+  if (!best) {
+    return undefined
+  }
+  const { dist, ...seat } = best
+  return seat
+}
+
+// Load-time canonical size reconstruction: the tables table has no
+// width/height column (out of scope to add - see plan), so a table snaps to
+// this canonical default size for its saved seat_count on load. Seat count
+// and every assignment (by flat position) survive exactly; only which
+// side/position a given assignment visually renders at may shift.
+export function getDefaultTableSize(seatCount: number): {
+  width: number
+  height: number
+} {
+  const total = Math.max(4, seatCount % 2 === 0 ? seatCount : seatCount + 1)
+  const half = total / 2
+  const seatsPerRow = Math.min(3, Math.max(1, Math.ceil(half / 2)))
+  const seatsPerCol = Math.min(3, Math.max(1, Math.floor(half / 2)))
+  return { width: seatsPerRow * CELL, height: seatsPerCol * CELL }
 }
 
 export type SeatingChartTableNode = {
   id: string
   type: "table"
   position: Point
+  width: number
+  height: number
+  selected?: boolean
   data: TableNodeData
 }
 
@@ -133,6 +266,7 @@ export type SeatingChartStudentNode = {
   id: string
   type: "student"
   position: Point
+  selected?: boolean
   data: StudentNodeData
 }
 
@@ -148,41 +282,70 @@ export function buildInitialNodesAndEdges(
   const nodes: SeatingChartNode[] = []
   const edges: Edge[] = []
 
+  const sizeByTableId = new Map(
+    tables.map((table) => {
+      const { width, height } = getDefaultTableSize(table.seat_count)
+      const { seatsPerRow, seatsPerCol } = getSeatsPerSide(width, height)
+      return [
+        table.id,
+        {
+          width,
+          height,
+          order: getCanonicalSeatOrder(seatsPerRow, seatsPerCol),
+        },
+      ] as const
+    })
+  )
+
   for (const table of tables) {
+    const size = sizeByTableId.get(table.id)!
     nodes.push({
       id: table.id,
       type: "table",
       position: { x: table.x_pos, y: table.y_pos },
+      width: size.width,
+      height: size.height,
       data: { table },
     })
   }
 
-  for (const [seatId, studentId] of Object.entries(assignments)) {
+  for (const [flatSeatKey, studentId] of Object.entries(assignments)) {
     const student = studentsById.get(studentId)
     if (!student) {
       continue
     }
-    const [tableId, seatIndexStr] = seatId.split(":")
+    const [tableId, flatPositionStr] = flatSeatKey.split(":")
     const table = tables.find((t) => t.id === tableId)
-    if (!table) {
+    const size = sizeByTableId.get(tableId)
+    if (!table || !size) {
       continue
     }
-    const seatIndex = Number(seatIndexStr)
+    const flatPosition = Number(flatPositionStr)
+    const seatRef = size.order[flatPosition]
+    if (!seatRef) {
+      continue
+    }
+    const { side, indexInSide } = seatRef
+    const handleId = getSeatHandleId(tableId, side, indexInSide)
 
     nodes.push({
       id: studentId,
       type: "student",
       position: getConnectedStudentPosition(
         { x: table.x_pos, y: table.y_pos },
-        seatIndex
+        side,
+        indexInSide,
+        size.width,
+        size.height
       ),
       data: { student },
     })
     edges.push({
-      id: seatId,
+      id: handleId,
       source: tableId,
-      sourceHandle: seatId,
+      sourceHandle: handleId,
       target: studentId,
+      targetHandle: getStudentHandleId(studentId, getOppositeSide(side)),
     })
   }
 
@@ -192,6 +355,8 @@ export function buildInitialNodesAndEdges(
 // Derives the backend save payload from the current canvas state. Floating
 // (unconnected) student nodes are simply not represented anywhere in the
 // payload - only seated assignments ever persist, matching existing behavior.
+// Seat count is derived from each table node's live width/height, not the
+// (now vestigial) data.table.seat_count.
 export function deriveSeatingChartPayload(
   nodes: SeatingChartNode[],
   edges: Edge[]
@@ -201,17 +366,23 @@ export function deriveSeatingChartPayload(
   )
 
   return {
-    tables: tableNodes.map((node) => ({
-      x_pos: node.position.x,
-      y_pos: node.position.y,
-      seats: Array.from({ length: node.data.table.seat_count }, (_, i) => {
-        const seatId = getSeatId(node.id, i)
-        const edge = edges.find(
-          (e) => e.source === node.id && e.sourceHandle === seatId
-        )
-        return edge?.target ?? null
-      }),
-    })),
+    tables: tableNodes.map((node) => {
+      const width = node.width ?? MIN_TABLE_SIZE
+      const height = node.height ?? MIN_TABLE_SIZE
+      const { seatsPerRow, seatsPerCol } = getSeatsPerSide(width, height)
+      const order = getCanonicalSeatOrder(seatsPerRow, seatsPerCol)
+      return {
+        x_pos: node.position.x,
+        y_pos: node.position.y,
+        seats: order.map(({ side, indexInSide }) => {
+          const handleId = getSeatHandleId(node.id, side, indexInSide)
+          const edge = edges.find(
+            (e) => e.source === node.id && e.sourceHandle === handleId
+          )
+          return edge?.target ?? null
+        }),
+      }
+    }),
   }
 }
 

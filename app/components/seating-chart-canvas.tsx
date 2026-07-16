@@ -1,38 +1,95 @@
 import {
+  addEdge,
   Background,
   BackgroundVariant,
-  ConnectionMode,
+  Controls,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
   type Edge,
+  type OnConnect,
   type OnEdgesChange,
+  type OnNodeDrag,
   type OnNodesChange,
 } from "@xyflow/react"
-import { useRef, useState, type Dispatch, type SetStateAction } from "react"
+import React, { useCallback, type Dispatch, type SetStateAction } from "react"
+import { LockedContext } from "~/components/nodes/context"
+import { StudentCardContent } from "~/components/nodes/student-card-content"
 import { StudentNode } from "~/components/nodes/student-node"
 import { TableNode } from "~/components/nodes/table-node"
-import { DragCandidateContext, type DragCandidate } from "~/components/nodes/context"
-import { StudentCardContent } from "~/components/nodes/student-card-content"
 import { Item } from "~/components/ui/item"
 import { ScrollArea } from "~/components/ui/scroll-area"
 import type { Student } from "~/lib/types"
 import {
   CONNECT_THRESHOLD,
   DISCONNECT_THRESHOLD,
+  findNearestSeat,
+  getCanonicalSeatOrder,
+  getConnectedStudentPosition,
+  getOppositeSide,
+  getSeatCenter,
+  getSeatHandleId,
+  getSeatsPerSide,
+  getStudentHandleId,
   GRID_STEP,
   STUDENT_NODE_SIZE,
-  findNearestSeat,
-  getConnectedStudentPosition,
-  getSeatCenter,
-  getSeatId,
-  parseSeatIndex,
+  type Point,
   type SeatingChartNode,
+  type SeatingChartStudentNode,
+  type SeatingChartTableNode,
 } from "~/routes/classrooms/seating-chart.state"
 
 const nodeTypes = { table: TableNode, student: StudentNode }
 
 const STUDENT_DATA_TRANSFER_TYPE = "application/x-student-id"
+
+function studentCenter(node: SeatingChartNode): Point {
+  return {
+    x: node.position.x + STUDENT_NODE_SIZE / 2,
+    y: node.position.y + STUDENT_NODE_SIZE / 2,
+  }
+}
+
+// Every occupied seat except the dragged student's own current one - a
+// student re-approaching their own seat must still see it as available.
+function getOccupiedSeatIds(edges: Edge[], draggedStudentId: string): Set<string> {
+  return new Set(
+    edges
+      .filter((e) => e.target !== draggedStudentId)
+      .map((e) => e.sourceHandle)
+      .filter((h): h is string => !!h)
+  )
+}
+
+function findOwnSeat(edge: Edge, tableNodes: SeatingChartTableNode[]) {
+  const tableNode = tableNodes.find((n) => n.id === edge.source)
+  if (!tableNode || !edge.sourceHandle) {
+    return undefined
+  }
+  const { seatsPerRow, seatsPerCol } = getSeatsPerSide(
+    tableNode.width,
+    tableNode.height
+  )
+  const seat = getCanonicalSeatOrder(seatsPerRow, seatsPerCol).find(
+    ({ side, indexInSide }) =>
+      getSeatHandleId(tableNode.id, side, indexInSide) === edge.sourceHandle
+  )
+  if (!seat) {
+    return undefined
+  }
+  return {
+    tableNode,
+    side: seat.side,
+    indexInSide: seat.indexInSide,
+    center: getSeatCenter(
+      tableNode.position,
+      seat.side,
+      seat.indexInSide,
+      tableNode.width,
+      tableNode.height
+    ),
+  }
+}
 
 function StudentChip({
   student,
@@ -74,7 +131,11 @@ export function RosterPanel({
               <p className="text-sm text-muted-foreground">Empty</p>
             ) : (
               students.map((student) => (
-                <StudentChip key={student.id} student={student} locked={locked} />
+                <StudentChip
+                  key={student.id}
+                  student={student}
+                  locked={locked}
+                />
               ))
             )}
           </div>
@@ -95,34 +156,6 @@ interface SeatingChartCanvasProps {
   studentsById: Map<string, Student>
 }
 
-function tableNodesAsSeatTargets(nodes: SeatingChartNode[]) {
-  return nodes
-    .filter((n) => n.type === "table")
-    .map((n) => ({ id: n.id, position: n.position, seatCount: n.data.table.seat_count }))
-}
-
-function isOutsidePane(
-  event: MouseEvent | TouchEvent,
-  paneEl: HTMLElement
-): boolean {
-  const point =
-    "clientX" in event
-      ? { x: event.clientX, y: event.clientY }
-      : event.changedTouches?.[0]
-        ? { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY }
-        : undefined
-  if (!point) {
-    return false
-  }
-  const rect = paneEl.getBoundingClientRect()
-  return (
-    point.x < rect.left ||
-    point.x > rect.right ||
-    point.y < rect.top ||
-    point.y > rect.bottom
-  )
-}
-
 function SeatingChartCanvasInner({
   nodes,
   edges,
@@ -133,156 +166,190 @@ function SeatingChartCanvasInner({
   locked,
   studentsById,
 }: SeatingChartCanvasProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const [dragCandidate, setDragCandidate] = useState<DragCandidate>(null)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition } = useReactFlow<SeatingChartNode, Edge>()
 
-  function handleNodeDrag(
-    _event: MouseEvent | TouchEvent,
-    node: SeatingChartNode
-  ) {
-    if (node.type === "table") {
-      const connectedEdges = edges.filter((e) => e.source === node.id)
-      if (connectedEdges.length === 0) {
+  const onConnect: OnConnect = useCallback(
+    (params) => setEdges((eds) => addEdge(params, eds)),
+    []
+  )
+
+  const onNodeDrag: OnNodeDrag<SeatingChartNode> = useCallback(
+    (_, node) => {
+      if (node.type !== "student") {
         return
       }
-      setNodes((nds) =>
-        nds.map((n) => {
-          const edge = connectedEdges.find((e) => e.target === n.id)
-          if (!edge) {
-            return n
-          }
-          const seatIndex = parseSeatIndex(edge.sourceHandle)
-          return { ...n, position: getConnectedStudentPosition(node.position, seatIndex) }
-        })
+
+      const tableNodes = nodes.filter(
+        (n): n is SeatingChartTableNode => n.type === "table"
       )
-    } else if (node.type === "student") {
-      const center = {
-        x: node.position.x + STUDENT_NODE_SIZE / 2,
-        y: node.position.y + STUDENT_NODE_SIZE / 2,
-      }
-      const occupiedSeatIds = new Set(
-        edges
-          .filter((e) => e.target !== node.id)
-          .map((e) => e.sourceHandle)
-          .filter((seatId): seatId is string => !!seatId)
-      )
+      const center = studentCenter(node)
       const candidate = findNearestSeat(
-        tableNodesAsSeatTargets(nodes),
-        occupiedSeatIds,
+        tableNodes,
+        getOccupiedSeatIds(edges, node.id),
         center,
         CONNECT_THRESHOLD
       )
-      setDragCandidate(
-        candidate ? { tableId: candidate.tableId, seatIndex: candidate.seatIndex } : null
-      )
-    }
-  }
 
-  function handleNodeDragStop(
-    event: MouseEvent | TouchEvent,
-    node: SeatingChartNode
-  ) {
-    setDragCandidate(null)
+      setEdges((es) => {
+        const nextEdges = es
+          .filter((e) => e.className !== "temp")
+          .map((e) => {
+            if (e.target !== node.id) {
+              return e
+            }
+            const ownSeat = findOwnSeat(e, tableNodes)
+            const dist = ownSeat
+              ? Math.hypot(center.x - ownSeat.center.x, center.y - ownSeat.center.y)
+              : undefined
+            const hidden = dist !== undefined && dist > DISCONNECT_THRESHOLD
+            return e.hidden === hidden ? e : { ...e, hidden }
+          })
 
-    if (node.type !== "student") {
-      return
-    }
+        if (candidate && !nextEdges.some((e) => e.id === candidate.seatId)) {
+          nextEdges.push({
+            id: candidate.seatId,
+            source: candidate.tableId,
+            sourceHandle: candidate.seatId,
+            target: node.id,
+            targetHandle: getStudentHandleId(
+              node.id,
+              getOppositeSide(candidate.side)
+            ),
+            className: "temp",
+          })
+        }
 
-    if (wrapperRef.current && isOutsidePane(event, wrapperRef.current)) {
-      setNodes((nds) => nds.filter((n) => n.id !== node.id))
-      setEdges((eds) => eds.filter((e) => e.target !== node.id))
-      return
-    }
+        return nextEdges
+      })
+    },
+    [nodes, edges, setEdges]
+  )
 
-    const center = {
-      x: node.position.x + STUDENT_NODE_SIZE / 2,
-      y: node.position.y + STUDENT_NODE_SIZE / 2,
-    }
-    const occupiedSeatIds = new Set(
-      edges
-        .filter((e) => e.target !== node.id)
-        .map((e) => e.sourceHandle)
-        .filter((seatId): seatId is string => !!seatId)
-    )
-    const candidate = findNearestSeat(
-      tableNodesAsSeatTargets(nodes),
-      occupiedSeatIds,
-      center,
-      CONNECT_THRESHOLD
-    )
-
-    if (candidate) {
-      const tableNode = nodes.find((n) => n.id === candidate.tableId)
-      if (!tableNode) {
+  const onNodeDragStop: OnNodeDrag<SeatingChartNode> = useCallback(
+    (_, node) => {
+      if (node.type !== "student") {
         return
       }
-      setEdges((eds) => [
-        ...eds.filter((e) => e.target !== node.id),
-        {
-          id: candidate.seatId,
-          source: candidate.tableId,
-          sourceHandle: candidate.seatId,
-          target: node.id,
-        },
-      ])
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === node.id
-            ? { ...n, position: getConnectedStudentPosition(tableNode.position, candidate.seatIndex) }
-            : n
-        )
+
+      const tableNodes = nodes.filter(
+        (n): n is SeatingChartTableNode => n.type === "table"
       )
-      return
-    }
-
-    const ownEdge = edges.find((e) => e.target === node.id)
-    if (!ownEdge) {
-      return
-    }
-
-    const ownTableNode = nodes.find((n) => n.id === ownEdge.source)
-    if (!ownTableNode) {
-      return
-    }
-    const ownSeatIndex = parseSeatIndex(ownEdge.sourceHandle)
-    const ownSeatCenter = getSeatCenter(ownTableNode.position, ownSeatIndex)
-    const dist = Math.hypot(center.x - ownSeatCenter.x, center.y - ownSeatCenter.y)
-
-    if (dist <= DISCONNECT_THRESHOLD) {
-      setNodes((nds) =>
-        nds.map((n) =>
-          n.id === node.id
-            ? { ...n, position: getConnectedStudentPosition(ownTableNode.position, ownSeatIndex) }
-            : n
-        )
+      const candidate = findNearestSeat(
+        tableNodes,
+        getOccupiedSeatIds(edges, node.id),
+        studentCenter(node),
+        CONNECT_THRESHOLD
       )
-    } else {
-      setEdges((eds) => eds.filter((e) => e.target !== node.id))
-    }
-  }
 
-  function handleDragOver(event: React.DragEvent) {
-    event.preventDefault()
-    if (!locked) {
-      event.dataTransfer.dropEffect = "move"
-    }
-  }
+      if (candidate) {
+        const tableNode = tableNodes.find((n) => n.id === candidate.tableId)
+        if (!tableNode) {
+          return
+        }
+        setEdges((es) => [
+          ...es.filter((e) => e.className !== "temp" && e.target !== node.id),
+          {
+            id: candidate.seatId,
+            source: candidate.tableId,
+            sourceHandle: candidate.seatId,
+            target: node.id,
+            targetHandle: getStudentHandleId(
+              node.id,
+              getOppositeSide(candidate.side)
+            ),
+          },
+        ])
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === node.id
+              ? {
+                  ...n,
+                  position: getConnectedStudentPosition(
+                    tableNode.position,
+                    candidate.side,
+                    candidate.indexInSide,
+                    tableNode.width,
+                    tableNode.height
+                  ),
+                }
+              : n
+          )
+        )
+        return
+      }
 
-  function handleDrop(event: React.DragEvent) {
-    event.preventDefault()
-    if (locked) {
-      return
-    }
-    const studentId = event.dataTransfer.getData(STUDENT_DATA_TRANSFER_TYPE)
-    const student = studentsById.get(studentId)
-    if (!student) {
-      return
-    }
-    const position = screenToFlowPosition({ x: event.clientX, y: event.clientY })
-    setNodes((nds) => [
-      ...nds,
-      {
+      setEdges((es) => es.filter((e) => e.className !== "temp"))
+
+      const ownEdge = edges.find((e) => e.target === node.id)
+      if (!ownEdge) {
+        return
+      }
+      const ownSeat = findOwnSeat(ownEdge, tableNodes)
+      if (!ownSeat) {
+        return
+      }
+
+      const center = studentCenter(node)
+      const dist = Math.hypot(
+        center.x - ownSeat.center.x,
+        center.y - ownSeat.center.y
+      )
+
+      if (dist <= DISCONNECT_THRESHOLD) {
+        setEdges((es) =>
+          es.map((e) => (e.id === ownEdge.id ? { ...e, hidden: false } : e))
+        )
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === node.id
+              ? {
+                  ...n,
+                  position: getConnectedStudentPosition(
+                    ownSeat.tableNode.position,
+                    ownSeat.side,
+                    ownSeat.indexInSide,
+                    ownSeat.tableNode.width,
+                    ownSeat.tableNode.height
+                  ),
+                }
+              : n
+          )
+        )
+      } else {
+        setEdges((es) => es.filter((e) => e.target !== node.id))
+      }
+    },
+    [nodes, edges, setNodes, setEdges]
+  )
+
+  const onDragOver = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault()
+      if (!locked) {
+        event.dataTransfer.dropEffect = "move"
+      }
+    },
+    [locked]
+  )
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault()
+      if (locked) {
+        return
+      }
+
+      const studentId = event.dataTransfer.getData(STUDENT_DATA_TRANSFER_TYPE)
+      const student = studentsById.get(studentId)
+      if (!student) {
+        return
+      }
+
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      })
+      const newNode: SeatingChartStudentNode = {
         id: studentId,
         type: "student",
         position: {
@@ -290,36 +357,34 @@ function SeatingChartCanvasInner({
           y: position.y - STUDENT_NODE_SIZE / 2,
         },
         data: { student },
-      },
-    ])
-  }
+      }
+
+      setNodes((nds) => nds.concat(newNode))
+    },
+    [locked]
+  )
 
   return (
-    <div
-      ref={wrapperRef}
-      className="relative min-h-0 w-full flex-1 overflow-hidden rounded-lg border-2"
-    >
-      <DragCandidateContext value={dragCandidate}>
+    <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-lg border-2">
+      <LockedContext value={locked}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
-          onNodeDrag={handleNodeDrag}
-          onNodeDragStop={handleNodeDragStop}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
+          onNodeDrag={onNodeDrag}
+          onNodeDragStop={onNodeDragStop}
+          onConnect={onConnect}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
           nodesDraggable={!locked}
-          nodesConnectable={false}
           elementsSelectable={!locked}
-          connectionMode={ConnectionMode.Loose}
-          panOnScroll
-          fitView
         >
-          <Background variant={BackgroundVariant.Dots} gap={GRID_STEP} />
+          <Background />
         </ReactFlow>
-      </DragCandidateContext>
+        <Controls showInteractive={false} />
+      </LockedContext>
     </div>
   )
 }
