@@ -12,21 +12,15 @@ import { Button } from "~/components/ui/button"
 import { Item } from "~/components/ui/item"
 import {
   getStudentHandleId,
+  SIDE_TO_POSITION,
   STUDENT_NODE_SIZE,
   type SeatingChartNode,
   type StudentNodeData,
-} from "~/routes/classrooms/seating-chart.state"
+} from "~/lib/seating-chart-utils"
 import { BaseHandle } from "../base-handle"
 import { BaseNode } from "../base-node"
 import { LockedContext } from "./context"
 import { StudentCardContent } from "./student-card-content"
-
-const SIDE_TO_POSITION = {
-  top: Position.Top,
-  right: Position.Right,
-  bottom: Position.Bottom,
-  left: Position.Left,
-} as const
 
 export function StudentNode({
   id,
@@ -37,10 +31,10 @@ export function StudentNode({
   const { setNodes, setEdges } = useReactFlow<SeatingChartNode, Edge>()
   const edges = useEdges()
 
+  const showSelectedUi = !!selected && !locked
   const connectedHandleId = edges.find(
     (e) => e.target === id && !e.hidden
   )?.targetHandle
-  const showSelectedUi = !!selected && !locked
 
   function handleDelete() {
     setNodes((nds) => nds.filter((n) => n.id !== id))

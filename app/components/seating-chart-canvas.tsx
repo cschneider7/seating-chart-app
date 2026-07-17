@@ -18,7 +18,6 @@ import { StudentNode } from "~/components/nodes/student-node"
 import { TableNode } from "~/components/nodes/table-node"
 import { Item } from "~/components/ui/item"
 import { ScrollArea } from "~/components/ui/scroll-area"
-import type { Student } from "~/lib/types"
 import {
   CONNECT_THRESHOLD,
   DISCONNECT_THRESHOLD,
@@ -28,14 +27,14 @@ import {
   getOppositeSide,
   getSeatCenter,
   getSeatHandleId,
-  getSeatsPerSide,
   getStudentHandleId,
   STUDENT_NODE_SIZE,
   type Point,
   type SeatingChartNode,
   type SeatingChartStudentNode,
   type SeatingChartTableNode,
-} from "~/routes/classrooms/seating-chart.state"
+} from "~/lib/seating-chart-utils"
+import type { Student } from "~/lib/types"
 
 const nodeTypes = { table: TableNode, student: StudentNode }
 
@@ -48,44 +47,38 @@ function studentCenter(node: SeatingChartNode): Point {
   }
 }
 
-// Every occupied seat except the dragged student's own current one - a
-// student re-approaching their own seat must still see it as available.
-function getOccupiedSeatIds(
-  edges: Edge[],
-  draggedStudentId: string
-): Set<string> {
+// Every occupied seat except the dragged student's current one
+function getOccupiedSeatIds(studentId: string, edges: Edge[]): Set<string> {
   return new Set(
     edges
-      .filter((e) => e.target !== draggedStudentId)
+      .filter((e) => e.target !== studentId)
       .map((e) => e.sourceHandle)
       .filter((h): h is string => !!h)
   )
 }
 
-function findOwnSeat(edge: Edge, tableNodes: SeatingChartTableNode[]) {
+function getSeatFromEdge(edge: Edge, tableNodes: SeatingChartTableNode[]) {
   const tableNode = tableNodes.find((n) => n.id === edge.source)
   if (!tableNode || !edge.sourceHandle) {
     return undefined
   }
-  const { seatsPerRow, seatsPerCol } = getSeatsPerSide(
-    tableNode.width,
-    tableNode.height
+
+  const seat = getCanonicalSeatOrder().find(
+    ({ side, index }) =>
+      getSeatHandleId(tableNode.id, side, index) === edge.sourceHandle
   )
-  const seat = getCanonicalSeatOrder(seatsPerRow, seatsPerCol).find(
-    ({ side, indexInSide }) =>
-      getSeatHandleId(tableNode.id, side, indexInSide) === edge.sourceHandle
-  )
+
   if (!seat) {
     return undefined
   }
+
   return {
     tableNode,
     side: seat.side,
-    indexInSide: seat.indexInSide,
+    indexInSide: seat.index,
     center: getSeatCenter(
       tableNode.position,
       seat.side,
-      seat.indexInSide,
       tableNode.width,
       tableNode.height
     ),
@@ -190,7 +183,7 @@ function SeatingChartCanvasInner({
               if (!edge) {
                 return n
               }
-              const seat = findOwnSeat(edge, [node])
+              const seat = getSeatFromEdge(edge, [node])
               if (!seat) {
                 return n
               }
@@ -199,7 +192,6 @@ function SeatingChartCanvasInner({
                 position: getConnectedStudentPosition(
                   node.position,
                   seat.side,
-                  seat.indexInSide,
                   node.width,
                   node.height
                 ),
@@ -216,7 +208,7 @@ function SeatingChartCanvasInner({
           const center = studentCenter(node)
           const candidate = findNearestSeat(
             tableNodes,
-            getOccupiedSeatIds(edges, node.id),
+            getOccupiedSeatIds(node.id, edges),
             center,
             CONNECT_THRESHOLD
           )
@@ -228,7 +220,7 @@ function SeatingChartCanvasInner({
                 if (e.target !== node.id) {
                   return e
                 }
-                const ownSeat = findOwnSeat(e, tableNodes)
+                const ownSeat = getSeatFromEdge(e, tableNodes)
                 const dist = ownSeat
                   ? Math.hypot(
                       center.x - ownSeat.center.x,
@@ -278,7 +270,7 @@ function SeatingChartCanvasInner({
       )
       const candidate = findNearestSeat(
         tableNodes,
-        getOccupiedSeatIds(edges, node.id),
+        getOccupiedSeatIds(node.id, edges),
         studentCenter(node),
         CONNECT_THRESHOLD
       )
@@ -309,7 +301,6 @@ function SeatingChartCanvasInner({
                   position: getConnectedStudentPosition(
                     tableNode.position,
                     candidate.side,
-                    candidate.indexInSide,
                     tableNode.width,
                     tableNode.height
                   ),
@@ -326,7 +317,7 @@ function SeatingChartCanvasInner({
       if (!ownEdge) {
         return
       }
-      const ownSeat = findOwnSeat(ownEdge, tableNodes)
+      const ownSeat = getSeatFromEdge(ownEdge, tableNodes)
       if (!ownSeat) {
         return
       }
@@ -349,7 +340,6 @@ function SeatingChartCanvasInner({
                   position: getConnectedStudentPosition(
                     ownSeat.tableNode.position,
                     ownSeat.side,
-                    ownSeat.indexInSide,
                     ownSeat.tableNode.width,
                     ownSeat.tableNode.height
                   ),

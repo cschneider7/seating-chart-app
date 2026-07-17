@@ -10,9 +10,7 @@ export function stubFetch() {
   })
 }
 
-// Builds a fake React Router Route.{Action,Loader}Args object. Covers both
-// loaderArgs() (no body, GET) and actionArgs(body) (POST/PATCH/DELETE) shapes
-// used across the existing per-file helpers.
+// Builds a fake React Router Route.{Action,Loader}Args object
 export function makeArgs(
   url: string,
   options: {

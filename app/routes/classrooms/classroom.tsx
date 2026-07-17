@@ -22,17 +22,17 @@ import {
   updateSeatingChart,
 } from "~/lib/db"
 import type { seatingChartSchema } from "~/lib/schemas"
-import type { Route } from "./+types/classroom"
 import {
   buildInitialNodesAndEdges,
+  buildSeatingChartPayload,
   CELL,
-  createTable,
-  deriveSeatingChartPayload,
+  createCanvasTable,
   getSeatId,
   getUnassignedStudents,
   type SeatAssignments,
   type SeatingChartNode,
-} from "./seating-chart.state"
+} from "../../lib/seating-chart-utils"
+import type { Route } from "./+types/classroom"
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -106,7 +106,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
     setNodes((nds) =>
       nds.map((n) => (n.selected ? { ...n, selected: false } : n))
     )
-    const payload = deriveSeatingChartPayload(nodes, edges)
+    const payload = buildSeatingChartPayload(nodes, edges)
     fetcher.submit(payload, { method: "post", encType: "application/json" })
     setLocked(true)
   }
@@ -124,7 +124,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
 
   function handleAddTable() {
     const tableCount = nodes.filter((n) => n.type === "table").length
-    const table = createTable(tableCount, classroom.id)
+    const table = createCanvasTable(tableCount, classroom.id)
     setNodes((nds) => [
       ...nds,
       {

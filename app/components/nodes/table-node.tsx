@@ -1,5 +1,4 @@
 import {
-  Position,
   useNodes,
   useReactFlow,
   type Edge,
@@ -14,19 +13,12 @@ import { Button } from "~/components/ui/button"
 import {
   getCanonicalSeatOrder,
   getSeatHandleId,
-  getSeatsPerSide,
   MIN_TABLE_SIZE,
+  SIDE_TO_POSITION,
   type SeatingChartNode,
   type TableNodeData,
-} from "~/routes/classrooms/seating-chart.state"
+} from "~/lib/seating-chart-utils"
 import { LockedContext } from "./context"
-
-const SIDE_TO_POSITION = {
-  top: Position.Top,
-  right: Position.Right,
-  bottom: Position.Bottom,
-  left: Position.Left,
-} as const
 
 export function TableNode({
   id,
@@ -48,8 +40,7 @@ export function TableNode({
   const showSelectedUi = !!selected && !locked
   const w = width ?? MIN_TABLE_SIZE
   const h = height ?? MIN_TABLE_SIZE
-  const { seatsPerRow, seatsPerCol } = getSeatsPerSide(w, h)
-  const seatOrder = getCanonicalSeatOrder(seatsPerRow, seatsPerCol)
+  const seatOrder = getCanonicalSeatOrder()
 
   function handleRemoveTable() {
     const connectedStudentIds = new Set(
@@ -72,7 +63,7 @@ export function TableNode({
       style={{ width: w, height: h }}
       className="cursor-grab touch-none select-none active:cursor-grabbing"
     >
-      {seatOrder.map(({ side, indexInSide }) => {
+      {seatOrder.map(({ side, index: indexInSide }) => {
         const handleId = getSeatHandleId(id, side, indexInSide)
         return (
           <BaseHandle
