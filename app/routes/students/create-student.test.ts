@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+import { makeArgs, stubFetch } from "~/lib/test-utils"
 import { action } from "./create-student"
 
 const validPayload = {
@@ -7,34 +8,19 @@ const validPayload = {
   classroom_id: null,
 }
 
-function actionArgs(body: unknown) {
-  return {
-    request: new Request("http://test/students/new", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-    params: {},
-    context: {},
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any
-}
+const args = (body: unknown) =>
+  makeArgs("http://test/students/new", { method: "POST", body })
+
+stubFetch()
 
 describe("create-student action", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn())
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it("creates the student and redirects to its detail page", async () => {
     const createdStudent = { id: "student-1", ...validPayload }
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ data: createdStudent }), { status: 201 })
     )
 
-    const result = await action(actionArgs(validPayload))
+    const result = await action(args(validPayload))
 
     expect(fetch).toHaveBeenCalledTimes(1)
     const [url, init] = vi.mocked(fetch).mock.calls[0]
@@ -52,7 +38,7 @@ describe("create-student action", () => {
 
   it("returns validation errors and never calls fetch for an invalid payload", async () => {
     const result = await action(
-      actionArgs({
+      args({
         student_id: -1,
         name: "",
         classroom_id: null,
@@ -69,6 +55,6 @@ describe("create-student action", () => {
       new Response(null, { status: 500, statusText: "Internal Server Error" })
     )
 
-    await expect(action(actionArgs(validPayload))).rejects.toThrow()
+    await expect(action(args(validPayload))).rejects.toThrow()
   })
 })

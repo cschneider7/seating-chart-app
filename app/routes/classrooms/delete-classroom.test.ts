@@ -1,32 +1,22 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+import { makeArgs, stubFetch } from "~/lib/test-utils"
 import { action } from "./delete-classroom"
 
 const classroomId = "classroom-1"
 
-function actionArgs() {
-  return {
+const args = () =>
+  makeArgs(`http://test/classrooms/${classroomId}/delete`, {
+    method: "POST",
     params: { classroomId },
-    request: new Request(`http://test/classrooms/${classroomId}/delete`, {
-      method: "POST",
-    }),
-    context: {},
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any
-}
+  })
+
+stubFetch()
 
 describe("delete-classroom action", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn())
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it("issues a DELETE request and redirects to the classroom list", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }))
 
-    const result = await action(actionArgs())
+    const result = await action(args())
 
     expect(fetch).toHaveBeenCalledTimes(1)
     const [url, init] = vi.mocked(fetch).mock.calls[0]
@@ -39,13 +29,14 @@ describe("delete-classroom action", () => {
     expect(response.headers.get("Location")).toBe("/classrooms")
   })
 
-  // Action never checks `response.ok`, so it redirects regardless.
+  // The action's try/catch swallows the error deleteClassroom() throws on a
+  // non-ok response (see app/lib/db.ts), so it redirects either way.
   it("redirects even when the delete request fails", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(null, { status: 500, statusText: "Internal Server Error" })
     )
 
-    const result = await action(actionArgs())
+    const result = await action(args())
 
     expect(result).toBeInstanceOf(Response)
     expect((result as Response).status).toBe(302)

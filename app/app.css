@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
+@import "@xyflow/react/dist/style.css";
 
 @custom-variant dark (&:is(.dark, .dark *));
 
@@ -129,6 +130,17 @@ body {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+.react-flow {
+  --xy-background-color: var(--card);
+  --xy-background-pattern-color: var(--border);
+  --xy-edge-stroke: var(--muted-foreground);
+  --xy-edge-stroke-selected: var(--primary);
+  --xy-handle-background-color: var(--muted-foreground);
+  --xy-handle-border-color: var(--border);
+  --xy-selection-background-color: color-mix(in oklch, var(--primary) 10%, transparent);
+  --xy-selection-border: 1px solid var(--primary);
 }
 
 @layer base {

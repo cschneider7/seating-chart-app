@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
+import { makeArgs, stubFetch } from "~/lib/test-utils"
 import { action } from "./edit-student"
 
 const studentId = "student-1"
@@ -11,27 +12,16 @@ const existingStudent = {
   seat_id: null,
 }
 
-function actionArgs(body: unknown) {
-  return {
-    request: new Request(`http://test/students/${studentId}/edit`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+const args = (body: unknown) =>
+  makeArgs(`http://test/students/${studentId}/edit`, {
+    method: "POST",
     params: { studentId },
-    context: {},
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any
-}
+    body,
+  })
+
+stubFetch()
 
 describe("edit-student action", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn())
-  })
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-  })
-
   it("updates the student and redirects to its detail page", async () => {
     // Action makes an unused `getStudent` call before `updateStudent`, so mock both.
     vi.mocked(fetch)
@@ -42,7 +32,7 @@ describe("edit-student action", () => {
       )
       .mockResolvedValueOnce(new Response(null, { status: 200 }))
 
-    const result = await action(actionArgs({ name: "Bob Updated" }))
+    const result = await action(args({ name: "Bob Updated" }))
 
     expect(fetch).toHaveBeenCalledTimes(2)
     const [getUrl] = vi.mocked(fetch).mock.calls[0]
@@ -62,7 +52,7 @@ describe("edit-student action", () => {
   })
 
   it("returns validation errors and never calls fetch for an invalid payload", async () => {
-    const result = await action(actionArgs({ student_id: -1 }))
+    const result = await action(args({ student_id: -1 }))
 
     expect(fetch).not.toHaveBeenCalled()
     expect(result).not.toBeInstanceOf(Response)
@@ -80,6 +70,6 @@ describe("edit-student action", () => {
         new Response(null, { status: 500, statusText: "Internal Server Error" })
       )
 
-    await expect(action(actionArgs({ name: "Bob Updated" }))).rejects.toThrow()
+    await expect(action(args({ name: "Bob Updated" }))).rejects.toThrow()
   })
 })

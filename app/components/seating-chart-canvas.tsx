@@ -1,34 +1,89 @@
-import { SnapModifier } from "@dnd-kit/abstract/modifiers"
-import { RestrictToWindow } from "@dnd-kit/dom/modifiers"
-import { useDraggable, useDroppable } from "@dnd-kit/react"
-import { GripVerticalIcon, MinusIcon, PlusIcon, Trash2Icon } from "lucide-react"
-import { type Dispatch } from "react"
-import { Button } from "~/components/ui/button"
 import {
-  Card,
-  CardAction,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card"
-import { Item, ItemContent, ItemHeader, ItemTitle } from "~/components/ui/item"
+  addEdge,
+  Background,
+  Controls,
+  ReactFlow,
+  ReactFlowProvider,
+  useReactFlow,
+  type Edge,
+  type OnConnect,
+  type OnEdgesChange,
+  type OnNodeDrag,
+  type OnNodesChange,
+} from "@xyflow/react"
+import React, { useCallback, type Dispatch, type SetStateAction } from "react"
+import { LockedContext } from "~/components/nodes/context"
+import { StudentCardContent } from "~/components/nodes/student-card-content"
+import { StudentNode } from "~/components/nodes/student-node"
+import { TableNode } from "~/components/nodes/table-node"
+import { Item } from "~/components/ui/item"
 import { ScrollArea } from "~/components/ui/scroll-area"
-import type { Student, Table } from "~/lib/types"
-import { cn } from "~/lib/utils"
 import {
-  getSeatId,
-  type SeatAssignments,
-  type SeatingChartAction,
-  type SeatingChartActionData,
-} from "~/routes/classrooms/seating-chart.state"
+  CONNECT_THRESHOLD,
+  DISCONNECT_THRESHOLD,
+  findNearestSeat,
+  getCanonicalSeatOrder,
+  getConnectedStudentPosition,
+  getOppositeSide,
+  getSeatCenter,
+  getSeatHandleId,
+  getStudentHandleId,
+  STUDENT_NODE_SIZE,
+  type Point,
+  type SeatingChartNode,
+  type SeatingChartStudentNode,
+  type SeatingChartTableNode,
+} from "~/lib/seating-chart-utils"
+import type { Student } from "~/lib/types"
 
-export const GRID_STEP = 20
-export const DEFAULT_SEAT_COUNT = 4
-export const MIN_SEAT_COUNT = 1
-export const MAX_SEAT_COUNT = 12
-export const TABLES_PER_ROW = 4
-export const TABLE_SPACING = GRID_STEP * 13
-export const TABLE_OFFSET = GRID_STEP * 2
+const nodeTypes = { table: TableNode, student: StudentNode }
+
+const STUDENT_DATA_TRANSFER_TYPE = "application/x-student-id"
+
+function studentCenter(node: SeatingChartNode): Point {
+  return {
+    x: node.position.x + STUDENT_NODE_SIZE / 2,
+    y: node.position.y + STUDENT_NODE_SIZE / 2,
+  }
+}
+
+// Every occupied seat except the dragged student's current one
+function getOccupiedSeatIds(studentId: string, edges: Edge[]): Set<string> {
+  return new Set(
+    edges
+      .filter((e) => e.target !== studentId)
+      .map((e) => e.sourceHandle)
+      .filter((h): h is string => !!h)
+  )
+}
+
+function getSeatFromEdge(edge: Edge, tableNodes: SeatingChartTableNode[]) {
+  const tableNode = tableNodes.find((n) => n.id === edge.source)
+  if (!tableNode || !edge.sourceHandle) {
+    return undefined
+  }
+
+  const seat = getCanonicalSeatOrder().find(
+    ({ side, index }) =>
+      getSeatHandleId(tableNode.id, side, index) === edge.sourceHandle
+  )
+
+  if (!seat) {
+    return undefined
+  }
+
+  return {
+    tableNode,
+    side: seat.side,
+    indexInSide: seat.index,
+    center: getSeatCenter(
+      tableNode.position,
+      seat.side,
+      tableNode.width,
+      tableNode.height
+    ),
+  }
+}
 
 function StudentChip({
   student,
@@ -37,168 +92,19 @@ function StudentChip({
   student: Student
   locked: boolean
 }) {
-  const { ref } = useDraggable<SeatingChartActionData>({
-    id: student.id,
-    disabled: locked,
-    type: "student",
-    data: { kind: "student", studentId: student.id },
-  })
-
   return (
     <Item
       variant="outline"
       size="xs"
-      ref={ref}
+      draggable={!locked}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(STUDENT_DATA_TRANSFER_TYPE, student.id)
+        e.dataTransfer.effectAllowed = "move"
+      }}
       className="aspect-square w-24 shrink-0 overflow-hidden"
     >
-      <ItemHeader>
-        <img
-          src="https://avatar.vercel.sh/shadcn1"
-          alt="Student image"
-          className="aspect-5/4 w-full rounded-sm object-cover brightness-60 grayscale dark:brightness-40"
-        />
-      </ItemHeader>
-      <ItemContent>
-        <ItemTitle className="text-xs">{student.name}</ItemTitle>
-      </ItemContent>
+      <StudentCardContent student={student} />
     </Item>
-  )
-}
-
-function SeatSlot({
-  tableId,
-  seatIndex,
-  student,
-  locked,
-}: {
-  tableId: string
-  seatIndex: number
-  student: Student | undefined
-  locked: boolean
-}) {
-  const seatId = getSeatId(tableId, seatIndex)
-  const { ref, isDropTarget } = useDroppable<SeatingChartActionData>({
-    id: seatId,
-    type: "seat",
-    accept: ["student"],
-    data: { kind: "seat", tableId, seatIndex, seatId },
-  })
-
-  return (
-    <div
-      ref={ref}
-      className={cn(
-        "flex size-24 items-center justify-center rounded-lg text-xs text-muted-foreground transition-colors",
-        !student && "border border-dashed",
-        isDropTarget && "border border-primary bg-primary/10"
-      )}
-    >
-      {student ? <StudentChip student={student} locked={locked} /> : "Empty"}
-    </div>
-  )
-}
-
-function TableCard({
-  table,
-  index,
-  studentsById,
-  assignments,
-  locked,
-  dispatch,
-}: {
-  table: Table
-  index: number
-  studentsById: Map<string, Student>
-  assignments: SeatAssignments
-  locked: boolean
-  dispatch: Dispatch<SeatingChartAction>
-}) {
-  const { ref, handleRef } = useDraggable<SeatingChartActionData>({
-    id: table.id,
-    type: "table",
-    data: { kind: "table", tableId: table.id },
-    modifiers: [RestrictToWindow, SnapModifier.configure({ size: GRID_STEP })],
-    disabled: locked,
-  })
-
-  return (
-    <Card
-      ref={ref}
-      className="absolute top-0 left-0 w-fit"
-      style={{
-        transform: `translate3d(${table.x_pos}px, ${table.y_pos}px, 0)`,
-      }}
-    >
-      <CardHeader>
-        <CardTitle
-          ref={handleRef}
-          className="flex w-fit cursor-grab touch-none items-center gap-1.5 select-none active:cursor-grabbing"
-        >
-          <GripVerticalIcon className="size-4 text-muted-foreground" />
-          Table {index + 1}
-        </CardTitle>
-        {!locked ? (
-          <CardAction className="flex items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-xs"
-              onClick={() =>
-                dispatch({
-                  type: "SET_SEAT_COUNT",
-                  tableId: table.id,
-                  seatCount: table.seat_count - 1,
-                })
-              }
-            >
-              <MinusIcon />
-            </Button>
-            <span className="w-4 text-center text-xs tabular-nums">
-              {table.seat_count}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="icon-xs"
-              onClick={() =>
-                dispatch({
-                  type: "SET_SEAT_COUNT",
-                  tableId: table.id,
-                  seatCount: table.seat_count + 1,
-                })
-              }
-            >
-              <PlusIcon />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-xs"
-              onClick={() =>
-                dispatch({ type: "REMOVE_TABLE", tableId: table.id })
-              }
-            >
-              <Trash2Icon />
-            </Button>
-          </CardAction>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-3">
-          {Array.from({ length: table.seat_count }, (_, seatIndex) => (
-            <SeatSlot
-              key={seatIndex}
-              tableId={table.id}
-              seatIndex={seatIndex}
-              student={studentsById.get(
-                assignments[getSeatId(table.id, seatIndex)] ?? ""
-              )}
-              locked={locked}
-            />
-          ))}
-        </div>
-      </CardContent>
-    </Card>
   )
 }
 
@@ -209,21 +115,8 @@ export function RosterPanel({
   students: Student[]
   locked: boolean
 }) {
-  const { ref, isDropTarget } = useDroppable<SeatingChartActionData>({
-    id: "roster",
-    type: "roster",
-    accept: ["student"],
-    data: { kind: "roster" },
-  })
-
   return (
-    <div
-      ref={ref}
-      className={cn(
-        "h-full rounded-lg border p-1",
-        isDropTarget && "ring-2 ring-primary/40"
-      )}
-    >
+    <div className="h-full rounded-lg border p-1">
       <ScrollArea className="h-full">
         <div className="h-full min-h-0 w-45 shrink-0 p-3 transition-shadow">
           <h4 className="mb-4 text-sm leading-none font-medium">Unassigned</h4>
@@ -246,39 +139,292 @@ export function RosterPanel({
   )
 }
 
-export function SeatingChartCanvas({
-  tables,
-  studentsById,
-  assignments,
-  locked,
-  dispatch,
-}: {
-  tables: Table[]
-  studentsById: Map<string, Student>
-  assignments: SeatAssignments
+interface SeatingChartCanvasProps {
+  nodes: SeatingChartNode[]
+  edges: Edge[]
+  onNodesChange: OnNodesChange<SeatingChartNode>
+  onEdgesChange: OnEdgesChange<Edge>
+  setNodes: Dispatch<SetStateAction<SeatingChartNode[]>>
+  setEdges: Dispatch<SetStateAction<Edge[]>>
   locked: boolean
-  dispatch: Dispatch<SeatingChartAction>
-}) {
+  studentsById: Map<string, Student>
+}
+
+function SeatingChartCanvasInner({
+  nodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  setNodes,
+  setEdges,
+  locked,
+  studentsById,
+}: SeatingChartCanvasProps) {
+  const { screenToFlowPosition } = useReactFlow<SeatingChartNode, Edge>()
+
+  const onConnect: OnConnect = useCallback(
+    (params) => setEdges((eds) => addEdge(params, eds)),
+    []
+  )
+
+  const onNodeDrag: OnNodeDrag<SeatingChartNode> = useCallback(
+    (_, node) => {
+      switch (node.type) {
+        case "table": {
+          const connectedEdges = edges.filter(
+            (e) => e.source === node.id && !e.hidden
+          )
+          if (connectedEdges.length === 0) {
+            return
+          }
+          setNodes((nds) =>
+            nds.map((n) => {
+              const edge = connectedEdges.find((e) => e.target === n.id)
+              if (!edge) {
+                return n
+              }
+              const seat = getSeatFromEdge(edge, [node])
+              if (!seat) {
+                return n
+              }
+              return {
+                ...n,
+                position: getConnectedStudentPosition(
+                  node.position,
+                  seat.side,
+                  node.width,
+                  node.height
+                ),
+              }
+            })
+          )
+          return
+        }
+
+        case "student": {
+          const tableNodes = nodes.filter(
+            (n): n is SeatingChartTableNode => n.type === "table"
+          )
+          const center = studentCenter(node)
+          const candidate = findNearestSeat(
+            tableNodes,
+            getOccupiedSeatIds(node.id, edges),
+            center,
+            CONNECT_THRESHOLD
+          )
+
+          setEdges((es) => {
+            const nextEdges = es
+              .filter((e) => e.className !== "temp")
+              .map((e) => {
+                if (e.target !== node.id) {
+                  return e
+                }
+                const ownSeat = getSeatFromEdge(e, tableNodes)
+                const dist = ownSeat
+                  ? Math.hypot(
+                      center.x - ownSeat.center.x,
+                      center.y - ownSeat.center.y
+                    )
+                  : undefined
+                const hidden = dist !== undefined && dist > DISCONNECT_THRESHOLD
+                return e.hidden === hidden ? e : { ...e, hidden }
+              })
+
+            if (
+              candidate &&
+              !nextEdges.some((e) => e.id === candidate.seatId)
+            ) {
+              nextEdges.push({
+                id: candidate.seatId,
+                source: candidate.tableId,
+                sourceHandle: candidate.seatId,
+                target: node.id,
+                targetHandle: getStudentHandleId(
+                  node.id,
+                  getOppositeSide(candidate.side)
+                ),
+                className: "temp",
+              })
+            }
+
+            return nextEdges
+          })
+        }
+
+        default:
+          return
+      }
+    },
+    [nodes, edges, setNodes, setEdges]
+  )
+
+  const onNodeDragStop: OnNodeDrag<SeatingChartNode> = useCallback(
+    (_, node) => {
+      if (node.type !== "student") {
+        return
+      }
+
+      const tableNodes = nodes.filter(
+        (n): n is SeatingChartTableNode => n.type === "table"
+      )
+      const candidate = findNearestSeat(
+        tableNodes,
+        getOccupiedSeatIds(node.id, edges),
+        studentCenter(node),
+        CONNECT_THRESHOLD
+      )
+
+      if (candidate) {
+        const tableNode = tableNodes.find((n) => n.id === candidate.tableId)
+        if (!tableNode) {
+          return
+        }
+        setEdges((es) => [
+          ...es.filter((e) => e.className !== "temp" && e.target !== node.id),
+          {
+            id: candidate.seatId,
+            source: candidate.tableId,
+            sourceHandle: candidate.seatId,
+            target: node.id,
+            targetHandle: getStudentHandleId(
+              node.id,
+              getOppositeSide(candidate.side)
+            ),
+          },
+        ])
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === node.id
+              ? {
+                  ...n,
+                  position: getConnectedStudentPosition(
+                    tableNode.position,
+                    candidate.side,
+                    tableNode.width,
+                    tableNode.height
+                  ),
+                }
+              : n
+          )
+        )
+        return
+      }
+
+      setEdges((es) => es.filter((e) => e.className !== "temp"))
+
+      const ownEdge = edges.find((e) => e.target === node.id)
+      if (!ownEdge) {
+        return
+      }
+      const ownSeat = getSeatFromEdge(ownEdge, tableNodes)
+      if (!ownSeat) {
+        return
+      }
+
+      const center = studentCenter(node)
+      const dist = Math.hypot(
+        center.x - ownSeat.center.x,
+        center.y - ownSeat.center.y
+      )
+
+      if (dist <= DISCONNECT_THRESHOLD) {
+        setEdges((es) =>
+          es.map((e) => (e.id === ownEdge.id ? { ...e, hidden: false } : e))
+        )
+        setNodes((nds) =>
+          nds.map((n) =>
+            n.id === node.id
+              ? {
+                  ...n,
+                  position: getConnectedStudentPosition(
+                    ownSeat.tableNode.position,
+                    ownSeat.side,
+                    ownSeat.tableNode.width,
+                    ownSeat.tableNode.height
+                  ),
+                }
+              : n
+          )
+        )
+      } else {
+        setEdges((es) => es.filter((e) => e.target !== node.id))
+      }
+    },
+    [nodes, edges, setNodes, setEdges]
+  )
+
+  const onDragOver = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault()
+      if (!locked) {
+        event.dataTransfer.dropEffect = "move"
+      }
+    },
+    [locked]
+  )
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault()
+      if (locked) {
+        return
+      }
+
+      const studentId = event.dataTransfer.getData(STUDENT_DATA_TRANSFER_TYPE)
+      const student = studentsById.get(studentId)
+      if (!student) {
+        return
+      }
+
+      const position = screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      })
+      const newNode: SeatingChartStudentNode = {
+        id: studentId,
+        type: "student",
+        position: {
+          x: position.x - STUDENT_NODE_SIZE / 2,
+          y: position.y - STUDENT_NODE_SIZE / 2,
+        },
+        data: { student },
+      }
+
+      setNodes((nds) => nds.concat(newNode))
+    },
+    [locked]
+  )
+
   return (
-    <div
-      className="relative min-h-0 w-full flex-1 overflow-auto rounded-lg border-2"
-      style={{
-        backgroundImage:
-          "radial-gradient(circle, color-mix(in oklch, var(--color-foreground) 15%, transparent) 1px, transparent 1px)",
-        backgroundSize: `${GRID_STEP}px ${GRID_STEP}px`,
-      }}
-    >
-      {tables.map((table, index) => (
-        <TableCard
-          key={table.id}
-          table={table}
-          index={index}
-          studentsById={studentsById}
-          assignments={assignments}
-          locked={locked}
-          dispatch={dispatch}
-        />
-      ))}
+    <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-lg border-2">
+      <LockedContext value={locked}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          onNodeDrag={onNodeDrag}
+          onNodeDragStop={onNodeDragStop}
+          onConnect={onConnect}
+          onDrop={onDrop}
+          onDragOver={onDragOver}
+          nodesDraggable={!locked}
+          elementsSelectable={!locked}
+        >
+          <Background />
+        </ReactFlow>
+        <Controls showInteractive={false} />
+      </LockedContext>
     </div>
+  )
+}
+
+export function SeatingChartCanvas(props: SeatingChartCanvasProps) {
+  return (
+    <ReactFlowProvider>
+      <SeatingChartCanvasInner {...props} />
+    </ReactFlowProvider>
   )
 }
