@@ -1,11 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
-import {
-  Link,
-  isRouteErrorResponse,
-  redirect,
-  useSubmit,
-} from "react-router"
+import { Link, isRouteErrorResponse, redirect, useSubmit } from "react-router"
 import * as z from "zod"
 import { Button } from "~/components/ui/button"
 import {
@@ -31,8 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select"
-import { createClassroom } from "~/lib/db"
-import { createClassroomSchema } from "~/lib/schemas"
+import { createClassroom } from "~/lib/api"
+import { CreateClassroomSchema } from "~/lib/schemas"
 import type { Route } from "./+types/create-classroom"
 
 const periodOptions = Array.from({ length: 9 }, (_, i) => ({
@@ -42,7 +37,7 @@ const periodOptions = Array.from({ length: 9 }, (_, i) => ({
 
 export async function action({ request }: Route.ActionArgs) {
   const rawData = await request.json()
-  const result = createClassroomSchema.safeParse(rawData)
+  const result = CreateClassroomSchema.safeParse(rawData)
 
   if (!result.success) {
     return z.treeifyError(result.error)
@@ -55,14 +50,14 @@ export async function action({ request }: Route.ActionArgs) {
 export default function Component() {
   const submit = useSubmit()
 
-  const form = useForm<z.infer<typeof createClassroomSchema>>({
-    resolver: zodResolver(createClassroomSchema),
+  const form = useForm<z.infer<typeof CreateClassroomSchema>>({
+    resolver: zodResolver(CreateClassroomSchema),
     defaultValues: {
       subject: "",
     },
   })
 
-  const onSubmit = (data: z.infer<typeof createClassroomSchema>) =>
+  const onSubmit = (data: z.infer<typeof CreateClassroomSchema>) =>
     submit(data, { method: "post", encType: "application/json" })
 
   return (

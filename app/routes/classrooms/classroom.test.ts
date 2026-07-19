@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
-import type * as z from "zod"
-import type { seatingChartSchema } from "~/lib/schemas"
+import type { Classroom, SeatingChart, Student } from "~/lib/schemas"
 import { makeArgs, stubFetch } from "~/lib/test-utils"
-import type { Classroom, SeatAssignment, Student, Table } from "~/lib/types"
 import { action, loader } from "./classroom"
 
 const classroomId = "classroom-1"
@@ -26,11 +24,21 @@ function jsonResponse(data: unknown) {
 stubFetch()
 
 describe("classroom loader", () => {
-  it("loads the classroom, its tables, its students, and its seat assignments", async () => {
+  it("loads the classroom, its seating chart, and its students in this classroom", async () => {
     const classroom: Classroom = {
       id: classroomId,
       period: 2,
       subject: "Math",
+    }
+    const seatingChart: SeatingChart = {
+      tables: [
+        {
+          table_number: 1,
+          x_pos: 0,
+          y_pos: 0,
+          seat_assignments: [null, null, null, null],
+        },
+      ],
     }
     const students: Student[] = [
       {
@@ -52,57 +60,45 @@ describe("classroom loader", () => {
         classroom_id: null,
       },
     ]
-    const tables: Table[] = [
-      {
-        id: "table-1",
-        classroom_id: classroomId,
-        table_number: 1,
-        seat_count: 2,
-        x_pos: 0,
-        y_pos: 0,
-      },
-    ]
-    const seatAssignments: SeatAssignment[] = [
-      { table_id: "table-1", position: 0, student_id: "s1" },
-    ]
 
     vi.mocked(fetch)
       .mockResolvedValueOnce(jsonResponse(classroom))
-      .mockResolvedValueOnce(jsonResponse(tables))
+      .mockResolvedValueOnce(jsonResponse(seatingChart))
       .mockResolvedValueOnce(jsonResponse(students))
-      .mockResolvedValueOnce(jsonResponse(seatAssignments))
 
     const result = await loader(loaderArgs())
 
-    expect(fetch).toHaveBeenCalledTimes(4)
+    expect(fetch).toHaveBeenCalledTimes(3)
     const [classroomUrl] = vi.mocked(fetch).mock.calls[0]
-    const [tablesUrl] = vi.mocked(fetch).mock.calls[1]
+    const [seatingChartUrl] = vi.mocked(fetch).mock.calls[1]
     const [studentsUrl] = vi.mocked(fetch).mock.calls[2]
-    const [seatAssignmentsUrl] = vi.mocked(fetch).mock.calls[3]
     expect(classroomUrl).toBe(
       `http://localhost:3000/api/v1/classrooms/${classroomId}`
     )
-    expect(tablesUrl).toBe(
-      `http://localhost:3000/api/v1/classrooms/${classroomId}/tables`
-    )
-    expect(studentsUrl).toBe("http://localhost:3000/api/v1/students")
-    expect(seatAssignmentsUrl).toBe(
+    expect(seatingChartUrl).toBe(
       `http://localhost:3000/api/v1/classrooms/${classroomId}/seating-chart`
     )
+    expect(studentsUrl).toBe("http://localhost:3000/api/v1/students")
 
     expect(result.classroom).toEqual(classroom)
+    expect(result.seatingChart).toEqual(seatingChart)
     expect(result.students).toEqual([students[0]])
-    expect(result.tables).toEqual(tables)
-    expect(result.assignments).toEqual({ "table-1:0": "s1" })
   })
 })
 
 describe("classroom action", () => {
-  it("PUTs the already nested tables/seats payload straight through", async () => {
+  it("PUTs the seating chart payload straight through", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }))
 
-    const chart: z.infer<typeof seatingChartSchema> = {
-      tables: [{ x_pos: 40, y_pos: 60, seats: [null, "s1"] }],
+    const chart: SeatingChart = {
+      tables: [
+        {
+          table_number: 0,
+          x_pos: 40,
+          y_pos: 60,
+          seat_assignments: [null, "s1", null, null],
+        },
+      ],
     }
 
     await action(actionArgs(chart))
@@ -113,8 +109,6 @@ describe("classroom action", () => {
       `http://localhost:3000/api/v1/classrooms/${classroomId}/seating-chart`
     )
     expect(init?.method).toBe("PUT")
-    expect(JSON.parse(init?.body as string)).toEqual({
-      tables: [{ x_pos: 40, y_pos: 60, seats: [null, "s1"] }],
-    })
+    expect(JSON.parse(init?.body as string)).toEqual(chart)
   })
 })

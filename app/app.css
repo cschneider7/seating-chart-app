@@ -143,6 +143,11 @@ body {
   --xy-selection-border: 1px solid var(--primary);
 }
 
+.react-flow__node.highlight {
+  background-color: #918fbe;
+  color: white;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

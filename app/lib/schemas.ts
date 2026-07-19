@@ -1,6 +1,9 @@
 import * as z from "zod"
 
-export const createStudentSchema = z.object({
+export type Student = z.infer<typeof CreateStudentSchema> & { id: string }
+export type Classroom = z.infer<typeof CreateClassroomSchema> & { id: string }
+
+export const CreateStudentSchema = z.object({
   classroom_id: z.uuidv4().nullable(),
   student_id: z.coerce.number<number>().int().positive(),
   name: z
@@ -10,7 +13,7 @@ export const createStudentSchema = z.object({
     .max(100, "Name must be at most 100 characters."),
 })
 
-export const editStudentSchema = z.object({
+export const UpdateStudentSchema = z.object({
   classroom_id: z.uuidv4().nullish(),
   student_id: z.optional(
     z.coerce
@@ -27,7 +30,7 @@ export const editStudentSchema = z.object({
   ),
 })
 
-export const createClassroomSchema = z.object({
+export const CreateClassroomSchema = z.object({
   period: z.coerce.number<number>().int().positive(),
   subject: z
     .string()
@@ -36,7 +39,7 @@ export const createClassroomSchema = z.object({
     .max(50, "Subject must be at most 30 characters."),
 })
 
-export const editClassroomSchema = z.object({
+export const UpdateClassroomSchema = z.object({
   period: z.optional(z.coerce.number<number>().int().positive()),
   subject: z.optional(
     z
@@ -47,12 +50,14 @@ export const editClassroomSchema = z.object({
   ),
 })
 
-export const seatingChartTableSchema = z.object({
-  x_pos: z.int(),
-  y_pos: z.int(),
-  seats: z.array(z.uuidv4().nullable()),
+export const SeatingChartSchema = z.object({
+  tables: z.array(
+    z.object({
+      table_number: z.int(),
+      x_pos: z.int(),
+      y_pos: z.int(),
+      seat_assignments: z.array(z.uuidv4().nullable()),
+    })
+  ),
 })
-
-export const seatingChartSchema = z.object({
-  tables: z.array(seatingChartTableSchema),
-})
+export type SeatingChart = z.infer<typeof SeatingChartSchema>

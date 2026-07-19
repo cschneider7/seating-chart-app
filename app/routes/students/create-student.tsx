@@ -1,11 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
-import {
-  Link,
-  isRouteErrorResponse,
-  redirect,
-  useSubmit,
-} from "react-router"
+import { Link, isRouteErrorResponse, redirect, useSubmit } from "react-router"
 import * as z from "zod"
 import { Button } from "~/components/ui/button"
 import {
@@ -32,13 +27,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select"
-import { createStudent, getClassrooms } from "~/lib/db"
-import { createStudentSchema } from "~/lib/schemas"
+import { createStudent, getClassrooms } from "~/lib/api"
+import { CreateStudentSchema } from "~/lib/schemas"
 import type { Route } from "./+types/create-student"
 
 export async function action({ request }: Route.ActionArgs) {
   const rawData = await request.json()
-  const result = createStudentSchema.safeParse(rawData)
+  const result = CreateStudentSchema.safeParse(rawData)
 
   if (!result.success) {
     return z.treeifyError(result.error)
@@ -57,15 +52,15 @@ export default function Component({ loaderData }: Route.ComponentProps) {
   const { classrooms } = loaderData
   const submit = useSubmit()
 
-  const form = useForm<z.infer<typeof createStudentSchema>>({
-    resolver: zodResolver(createStudentSchema),
+  const form = useForm<z.infer<typeof CreateStudentSchema>>({
+    resolver: zodResolver(CreateStudentSchema),
     defaultValues: {
       name: "",
       classroom_id: null,
     },
   })
 
-  const onSubmit = (data: z.infer<typeof createStudentSchema>) =>
+  const onSubmit = (data: z.infer<typeof CreateStudentSchema>) =>
     submit(data, { method: "post", encType: "application/json" })
 
   const classroomOptions: [{ label: string; value: string | null }] = [

@@ -1,12 +1,14 @@
 import * as z from "zod"
 import {
-  createClassroomSchema,
-  createStudentSchema,
-  editClassroomSchema,
-  editStudentSchema,
-  seatingChartSchema,
+  CreateClassroomSchema,
+  CreateStudentSchema,
+  SeatingChartSchema,
+  UpdateClassroomSchema,
+  UpdateStudentSchema,
+  type Classroom,
+  type SeatingChart,
+  type Student,
 } from "~/lib/schemas"
-import type { Classroom, SeatAssignment, Student, Table } from "~/lib/types"
 
 export async function getStudent(studentId: string): Promise<Student> {
   const res = await fetch(`http://localhost:3000/api/v1/students/${studentId}`)
@@ -29,7 +31,7 @@ export async function getStudents(): Promise<Student[]> {
 }
 
 export async function createStudent(
-  studentInfo: z.infer<typeof createStudentSchema>
+  studentInfo: z.infer<typeof CreateStudentSchema>
 ): Promise<Student> {
   const response = await fetch("http://localhost:3000/api/v1/students", {
     method: "POST",
@@ -49,7 +51,7 @@ export async function createStudent(
 
 export async function updateStudent(
   studentId: string,
-  updates: z.infer<typeof editStudentSchema>
+  updates: z.infer<typeof UpdateStudentSchema>
 ) {
   const response = await fetch(
     `http://localhost:3000/api/v1/students/${studentId}`,
@@ -103,7 +105,7 @@ export async function getClassrooms(): Promise<Classroom[]> {
 }
 
 export async function createClassroom(
-  classroomInfo: z.infer<typeof createClassroomSchema>
+  classroomInfo: z.infer<typeof CreateClassroomSchema>
 ): Promise<Classroom> {
   const response = await fetch("http://localhost:3000/api/v1/classrooms", {
     method: "POST",
@@ -123,7 +125,7 @@ export async function createClassroom(
 
 export async function updateClassroom(
   classroomId: string,
-  updates: z.infer<typeof editClassroomSchema>
+  updates: z.infer<typeof UpdateClassroomSchema>
 ) {
   const response = await fetch(
     `http://localhost:3000/api/v1/classrooms/${classroomId}`,
@@ -154,43 +156,9 @@ export async function deleteClassroom(classroomId: string) {
   }
 }
 
-export async function getClassroomTables(
+export async function getClassroomSeatingChart(
   classroomId: string
-): Promise<Table[]> {
-  const res = await fetch(
-    `http://localhost:3000/api/v1/classrooms/${classroomId}/tables`
-  )
-  if (!res.ok) {
-    throw new Error(`Error getting classroom tables: ", ${res}`)
-  }
-
-  const json = await res.json()
-  return json.data
-}
-
-export async function updateSeatingChart(
-  classroomId: string,
-  chartInfo: z.infer<typeof seatingChartSchema>
-) {
-  const response = await fetch(
-    `http://localhost:3000/api/v1/classrooms/${classroomId}/seating-chart`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(chartInfo),
-    }
-  )
-
-  if (!response.ok) {
-    throw new Error("Error updating seating chart: " + response.statusText)
-  }
-}
-
-export async function getSeatingChartAssignments(
-  classroomId: string
-): Promise<SeatAssignment[]> {
+): Promise<SeatingChart> {
   const res = await fetch(
     `http://localhost:3000/api/v1/classrooms/${classroomId}/seating-chart`
   )
@@ -199,5 +167,29 @@ export async function getSeatingChartAssignments(
   }
 
   const json = await res.json()
-  return json.data
+  const seatingChart = z.parse(SeatingChartSchema, json.data)
+
+  console.log(seatingChart)
+
+  return seatingChart
+}
+
+export async function updateClassroomSeatingChart(
+  classroomId: string,
+  seatingChart: SeatingChart
+) {
+  const response = await fetch(
+    `http://localhost:3000/api/v1/classrooms/${classroomId}/seating-chart`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(seatingChart),
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error("Error updating seating chart: " + response.statusText)
+  }
 }

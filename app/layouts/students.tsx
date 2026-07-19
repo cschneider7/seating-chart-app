@@ -3,7 +3,7 @@ import type { Route } from "./+types/students"
 
 import { Outlet } from "react-router"
 import { StudentSidebar } from "~/components/students-sidebar"
-import { getStudents } from "~/lib/db"
+import { getStudents } from "~/lib/api"
 
 export function meta({}: Route.MetaArgs) {
   return [

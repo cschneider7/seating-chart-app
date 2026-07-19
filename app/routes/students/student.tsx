@@ -24,7 +24,7 @@ import {
 
 import { Trash2Icon } from "lucide-react"
 import { Form, Link } from "react-router"
-import { getClassroom, getStudent } from "~/lib/db"
+import { getClassroom, getStudent } from "~/lib/api"
 import type { Route } from "./+types/student"
 
 export async function loader({ params }: Route.ClientLoaderArgs) {
