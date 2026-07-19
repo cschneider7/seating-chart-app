@@ -57,9 +57,5 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             "/api/v1/classrooms/{classroom_id}/seating-chart",
             put(handlers::classroom::update_seating_chart_handler),
         )
-        .route(
-            "/api/v1/classrooms/{classroom_id}/tables",
-            get(handlers::table::get_classroom_tables_handler),
-        )
         .with_state(app_state)
 }

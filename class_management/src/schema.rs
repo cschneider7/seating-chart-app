@@ -39,14 +39,14 @@ pub struct UpdateStudentSchema {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SeatingChartTableSchema {
-    pub x_pos: i32,
-    pub y_pos: i32,
-    /// index = position (0-indexed); seat_count is derived from `seats.len()`
-    pub seats: Vec<Option<Uuid>>,
+pub struct SeatingChartSchema {
+    pub tables: Vec<TableSchema>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SeatingChartSchema {
-    pub tables: Vec<SeatingChartTableSchema>,
+pub struct TableSchema {
+    pub table_number: i32,
+    pub x_pos: i32,
+    pub y_pos: i32,
+    pub seat_assignments: Vec<Option<Uuid>>,
 }

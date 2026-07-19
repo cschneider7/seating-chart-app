@@ -23,14 +23,14 @@ CREATE TABLE IF NOT EXISTS tables (
     seat_count SMALLINT NOT NULL,
     x_pos INTEGER NOT NULL,
     y_pos INTEGER NOT NULL,
-    created_time TIMESTAMPTZ DEFAULT now()
+    UNIQUE (classroom_id, table_number)
 );
 
 -- Seats
 CREATE TABLE IF NOT EXISTS seats (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     table_id UUID NOT NULL REFERENCES tables ON DELETE CASCADE,
-    student_id UUID UNIQUE REFERENCES students ON DELETE SET NULL,
-    position SMALLINT NOT NULL,
-    created_time TIMESTAMPTZ DEFAULT now()
+    student_id UUID REFERENCES students ON DELETE SET NULL,
+    seat_number SMALLINT NOT NULL,
+    UNIQUE (table_id, seat_number)
 );
