@@ -68,17 +68,6 @@
             "name": "y_pos"
           }
         }
-      },
-      {
-        "ordinal": 6,
-        "name": "created_time",
-        "type_info": "Timestamptz",
-        "origin": {
-          "Table": {
-            "table": "tables",
-            "name": "created_time"
-          }
-        }
       }
     ],
     "parameters": {
@@ -96,8 +85,7 @@
       false,
       false,
       false,
-      false,
-      true
+      false
     ]
   },
   "hash": "a4b3940df4f83552d1a48cab6b33733c96d7e44891831872661218bb8841fd57"

@@ -26,8 +26,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select"
-import { getClassroom, updateClassroom } from "~/lib/db"
-import { editClassroomSchema } from "~/lib/schemas"
+import { getClassroom, updateClassroom } from "~/lib/api"
+import { UpdateClassroomSchema } from "~/lib/schemas"
 import type { Route } from "./+types/edit-classroom"
 
 const periodOptions = Array.from({ length: 9 }, (_, i) => ({
@@ -42,7 +42,7 @@ export async function loader({ params }: Route.ClientLoaderArgs) {
 
 export async function action({ params, request }: Route.ActionArgs) {
   const rawData = await request.json()
-  const result = editClassroomSchema.safeParse(rawData)
+  const result = UpdateClassroomSchema.safeParse(rawData)
 
   if (!result.success) {
     return z.treeifyError(result.error)
@@ -57,8 +57,8 @@ export default function Component({ loaderData }: Route.ComponentProps) {
   const { classroom } = loaderData
   const submit = useSubmit()
 
-  const form = useForm<z.infer<typeof editClassroomSchema>>({
-    resolver: zodResolver(editClassroomSchema),
+  const form = useForm<z.infer<typeof UpdateClassroomSchema>>({
+    resolver: zodResolver(UpdateClassroomSchema),
     defaultValues: {
       subject: classroom.subject,
       period: classroom.period,
@@ -68,7 +68,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
   // formState is a proxy; dirtyFields must be read here, not inside onSubmit.
   const { dirtyFields } = form.formState
 
-  const onSubmit = (data: z.infer<typeof editClassroomSchema>) => {
+  const onSubmit = (data: z.infer<typeof UpdateClassroomSchema>) => {
     const changedData = Object.fromEntries(
       Object.entries(data).filter(
         ([key]) => dirtyFields[key as keyof typeof dirtyFields]

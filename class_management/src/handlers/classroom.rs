@@ -12,15 +12,8 @@ use uuid::Uuid;
 use crate::{
     AppState,
     model::ClassroomModel,
-    schema::{ClassroomSchema, SeatingChartSchema, UpdateClassroomSchema},
+    schema::{ClassroomSchema, SeatingChartSchema, TableSchema, UpdateClassroomSchema},
 };
-
-#[derive(serde::Serialize)]
-struct SeatAssignmentRow {
-    table_id: Uuid,
-    position: i16,
-    student_id: Uuid,
-}
 
 pub async fn classroom_list_handler(
     State(data): State<Arc<AppState>>,
@@ -200,6 +193,44 @@ pub async fn delete_classroom_handler(
     Ok((StatusCode::OK, Json(response)))
 }
 
+pub async fn get_seating_chart_handler(
+    Path(classroom_id): Path<Uuid>,
+    State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let tables = sqlx::query_as!(
+        TableSchema,
+        r#"SELECT
+            t.table_number,
+            t.x_pos,
+            t.y_pos,
+            ARRAY_AGG(s.student_id ORDER BY s.seat_number) as "seat_assignments!: Vec<Option<Uuid>>"
+        FROM tables t
+        INNER JOIN seats s ON (t.id = s.table_id)
+        WHERE t.classroom_id = $1
+        GROUP BY t.table_number, t.x_pos, t.y_pos
+        "#,
+        &classroom_id
+    )
+    .fetch_all(&data.db)
+    .await
+    .map_err(|e| {
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "message": format!("Database error: {}", e),
+            })),
+        )
+    })?;
+
+    let response = json!({
+        "data": {
+            "classroom_id": classroom_id,
+            "tables": tables
+        }
+    });
+    Ok((StatusCode::OK, Json(response)))
+}
+
 pub async fn update_seating_chart_handler(
     Path(classroom_id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
@@ -229,9 +260,11 @@ pub async fn update_seating_chart_handler(
         )
     })?;
 
+    let mut chart_tables: Vec<TableSchema> = Vec::new();
     for (index, table) in body.tables.iter().enumerate() {
         let table_number = index as i32;
-        let seat_count = table.seats.len() as i16;
+        let seat_count = table.seat_assignments.len() as i16;
+
         let table_id = sqlx::query_scalar!(
             r#"INSERT INTO tables (classroom_id, table_number, seat_count, x_pos, y_pos)
             VALUES ($1, $2, $3, $4, $5)
@@ -253,13 +286,15 @@ pub async fn update_seating_chart_handler(
             )
         })?;
 
-        for (position, student_id) in table.seats.iter().enumerate() {
+        for (index, student_id) in table.seat_assignments.iter().enumerate() {
+            let seat_number = index as i16;
+
             sqlx::query!(
-                r#"INSERT INTO seats (table_id, student_id, position)
+                r#"INSERT INTO seats (table_id, student_id, seat_number)
                 VALUES ($1, $2, $3)"#,
                 table_id,
                 student_id.as_ref(),
-                position as i16,
+                seat_number,
             )
             .execute(&mut *tx)
             .await
@@ -272,6 +307,14 @@ pub async fn update_seating_chart_handler(
                 )
             })?;
         }
+
+        let chart_table = TableSchema {
+            table_number,
+            x_pos: table.x_pos,
+            y_pos: table.y_pos,
+            seat_assignments: table.seat_assignments.clone(),
+        };
+        chart_tables.push(chart_table);
     }
 
     tx.commit().await.map_err(|e| {
@@ -284,41 +327,10 @@ pub async fn update_seating_chart_handler(
     })?;
 
     let response = json!({
-        "message": "Seating chart updated successfully"
-    });
-    Ok((StatusCode::OK, Json(response)))
-}
-
-pub async fn get_seating_chart_handler(
-    Path(classroom_id): Path<Uuid>,
-    State(data): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let assignments = sqlx::query_as!(
-        SeatAssignmentRow,
-        r#"SELECT
-            t.id as "table_id!",
-            s.position,
-            s.student_id as "student_id!"
-        FROM tables t
-        INNER JOIN seats s ON (t.id = s.table_id)
-        WHERE t.classroom_id = $1 AND s.student_id IS NOT NULL
-        ORDER BY t.table_number, s.position
-        "#,
-        &classroom_id
-    )
-    .fetch_all(&data.db)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("{:?}", e)
-            })),
-        )
-    })?;
-
-    let response = json!({
-        "data": json!(assignments)
+        "data": {
+            "classroom_id": classroom_id,
+            "tables": chart_tables
+        }
     });
     Ok((StatusCode::OK, Json(response)))
 }
@@ -413,16 +425,16 @@ mod tests {
         pool: &sqlx::PgPool,
         table_id: Uuid,
         student_id: Option<Uuid>,
-        position: i16,
+        seat_number: i16,
     ) -> SeatModel {
         sqlx::query_as!(
             SeatModel,
-            r#"INSERT INTO seats (table_id, student_id, position)
+            r#"INSERT INTO seats (table_id, student_id, seat_number)
             VALUES ($1, $2, $3)
             RETURNING *"#,
             table_id,
             student_id,
-            position
+            seat_number
         )
         .fetch_one(pool)
         .await
@@ -603,7 +615,7 @@ mod tests {
         let student_id = insert_student(&pool, 1, "Bob").await;
         let body = json!({
             "tables": [
-                { "x_pos": 20, "y_pos": 40, "seats": [student_id, null] },
+                { "table_number": 0, "x_pos": 20, "y_pos": 40, "seat_assignments": [student_id, null] },
             ]
         });
         let response = app
@@ -625,16 +637,16 @@ mod tests {
 
         let seats = sqlx::query_as!(
             SeatModel,
-            r#"SELECT * FROM seats WHERE table_id = $1 ORDER BY position"#,
+            r#"SELECT * FROM seats WHERE table_id = $1 ORDER BY seat_number"#,
             tables[0].id
         )
         .fetch_all(&pool)
         .await
         .unwrap();
         assert_eq!(seats.len(), 2);
-        assert_eq!(seats[0].position, 0);
+        assert_eq!(seats[0].seat_number, 0);
         assert_eq!(seats[0].student_id, Some(student_id));
-        assert_eq!(seats[1].position, 1);
+        assert_eq!(seats[1].seat_number, 1);
         assert_eq!(seats[1].student_id, None);
 
         Ok(())
@@ -652,9 +664,9 @@ mod tests {
         // request array index and not incidentally by x_pos or insert order.
         let body = json!({
             "tables": [
-                { "x_pos": 900, "y_pos": 0, "seats": [] },
-                { "x_pos": 100, "y_pos": 0, "seats": [] },
-                { "x_pos": 500, "y_pos": 0, "seats": [] },
+                { "table_number": 0, "x_pos": 900, "y_pos": 0, "seat_assignments": [] },
+                { "table_number": 1, "x_pos": 100, "y_pos": 0, "seat_assignments": [] },
+                { "table_number": 2, "x_pos": 500, "y_pos": 0, "seat_assignments": [] },
             ]
         });
         let response = app
@@ -729,11 +741,10 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
-        let assignments = json["data"].as_array().unwrap();
-        assert_eq!(assignments.len(), 1);
-        assert_eq!(assignments[0]["table_id"], table.id.to_string());
-        assert_eq!(assignments[0]["position"], 0);
-        assert_eq!(assignments[0]["student_id"], student_id.to_string());
+        let assignments = json["data"]["tables"][0]["seat_assignments"]
+            .as_array()
+            .unwrap();
+        assert_eq!(assignments[0], student_id.to_string());
 
         Ok(())
     }
@@ -767,13 +778,10 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
-        let assignments = json["data"].as_array().unwrap();
-        assert_eq!(assignments.len(), 2);
-        assert_eq!(assignments[0]["table_id"], first_table.id.to_string());
-        assert_eq!(assignments[0]["student_id"], student_a.to_string());
-        assert_eq!(assignments[1]["table_id"], second_table.id.to_string());
-        assert_eq!(assignments[1]["student_id"], student_b.to_string());
-
+        let tables = json["data"]["tables"].as_array().unwrap();
+        assert_eq!(tables.len(), 2);
+        assert_eq!(tables[0]["seat_assignments"][0], student_a.to_string());
+        assert_eq!(tables[1]["seat_assignments"][0], student_b.to_string());
         Ok(())
     }
 
@@ -797,7 +805,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
-        assert!(json["data"].as_array().unwrap().is_empty());
+        assert!(json["data"]["tables"].as_array().unwrap().is_empty());
 
         Ok(())
     }

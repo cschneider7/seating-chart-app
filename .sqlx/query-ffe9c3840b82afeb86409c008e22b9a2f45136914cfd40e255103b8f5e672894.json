@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO seats (table_id, student_id, position)\n            VALUES ($1, $2, $3)\n            RETURNING *",
+  "query": "INSERT INTO seats (table_id, student_id, seat_number)\n            VALUES ($1, $2, $3)\n            RETURNING *",
   "describe": {
     "columns": [
       {
@@ -38,23 +38,12 @@
       },
       {
         "ordinal": 3,
-        "name": "position",
+        "name": "seat_number",
         "type_info": "Int2",
         "origin": {
           "Table": {
             "table": "seats",
-            "name": "position"
-          }
-        }
-      },
-      {
-        "ordinal": 4,
-        "name": "created_time",
-        "type_info": "Timestamptz",
-        "origin": {
-          "Table": {
-            "table": "seats",
-            "name": "created_time"
+            "name": "seat_number"
           }
         }
       }
@@ -70,9 +59,8 @@
       false,
       false,
       true,
-      false,
-      true
+      false
     ]
   },
-  "hash": "391dca1d742d28fecb204ac60c7eee66e116d957675bda76960ba2f6432a1b89"
+  "hash": "ffe9c3840b82afeb86409c008e22b9a2f45136914cfd40e255103b8f5e672894"
 }

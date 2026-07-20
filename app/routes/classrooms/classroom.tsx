@@ -1,13 +1,7 @@
-import {
-  applyEdgeChanges,
-  applyNodeChanges,
-  type OnEdgesChange,
-  type OnNodesChange,
-} from "@xyflow/react"
+import { useNodesState } from "@xyflow/react"
 import { Plus } from "lucide-react"
-import { useCallback, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { useFetcher } from "react-router"
-import * as z from "zod"
 import {
   RosterPanel,
   SeatingChartCanvas,
@@ -16,21 +10,22 @@ import { Button } from "~/components/ui/button"
 import { Spinner } from "~/components/ui/spinner"
 import {
   getClassroom,
-  getClassroomTables,
-  getSeatingChartAssignments,
+  getClassroomSeatingChart,
   getStudents,
-  updateSeatingChart,
-} from "~/lib/db"
-import type { seatingChartSchema } from "~/lib/schemas"
+  updateClassroomSeatingChart,
+} from "~/lib/api"
+import type { SeatingChart } from "~/lib/schemas"
 import {
-  buildInitialNodesAndEdges,
+  buildInitialNodes,
   buildSeatingChartPayload,
-  CELL,
   createCanvasTable,
   getSeatId,
+  getSeatPosition,
   getUnassignedStudents,
-  type SeatAssignments,
-  type SeatingChartNode,
+  SEAT_NODE_SIZE,
+  SEATS_PER_TABLE,
+  type SeatingChartSeatNode,
+  type SeatingChartTableNode,
 } from "../../lib/seating-chart-utils"
 import type { Route } from "./+types/classroom"
 
@@ -42,32 +37,25 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader({ params }: Route.ClientLoaderArgs) {
-  const [classroom, tables, allStudents, seatAssignments] = await Promise.all([
+  const [classroom, seatingChart, allStudents] = await Promise.all([
     getClassroom(params.classroomId),
-    getClassroomTables(params.classroomId),
+    getClassroomSeatingChart(params.classroomId),
     getStudents(),
-    getSeatingChartAssignments(params.classroomId),
   ])
   const students = allStudents.filter((s) => s.classroom_id === classroom.id)
-  const assignments: SeatAssignments = Object.fromEntries(
-    seatAssignments.map(({ table_id, position, student_id }) => [
-      getSeatId(table_id, position),
-      student_id,
-    ])
-  )
-  return { classroom, students, tables, assignments }
+  return { classroom, students, seatingChart }
 }
 
 export async function action({ params, request }: Route.ActionArgs) {
-  const chart: z.infer<typeof seatingChartSchema> = await request.json()
+  const chart: SeatingChart = await request.json()
 
-  await updateSeatingChart(params.classroomId, chart)
+  await updateClassroomSeatingChart(params.classroomId, chart)
 
   return { ok: true }
 }
 
 export default function Component({ loaderData }: Route.ComponentProps) {
-  const { classroom, students, tables, assignments } = loaderData
+  const { classroom, students, seatingChart } = loaderData
 
   const [locked, setLocked] = useState(true)
 
@@ -76,24 +64,12 @@ export default function Component({ loaderData }: Route.ComponentProps) {
     [students]
   )
 
-  const initial = useMemo(
-    () => buildInitialNodesAndEdges(tables, assignments, studentsById),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const initialNodes = useMemo(
+    () => buildInitialNodes(classroom.id, seatingChart, studentsById),
     []
   )
 
-  const [nodes, setNodes] = useState(initial.nodes)
-  const [edges, setEdges] = useState(initial.edges)
-  const onNodesChange: OnNodesChange<SeatingChartNode> = useCallback(
-    (changes) =>
-      setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
-    []
-  )
-  const onEdgesChange: OnEdgesChange = useCallback(
-    (changes) =>
-      setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
-    []
-  )
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
 
   const fetcher = useFetcher()
 
@@ -106,40 +82,56 @@ export default function Component({ loaderData }: Route.ComponentProps) {
     setNodes((nds) =>
       nds.map((n) => (n.selected ? { ...n, selected: false } : n))
     )
-    const payload = buildSeatingChartPayload(nodes, edges)
+    const payload = buildSeatingChartPayload(nodes)
     fetcher.submit(payload, { method: "post", encType: "application/json" })
     setLocked(true)
   }
 
   function handleCancel() {
-    const reverted = buildInitialNodesAndEdges(
-      tables,
-      assignments,
-      studentsById
-    )
-    setNodes(reverted.nodes)
-    setEdges(reverted.edges)
+    setNodes(buildInitialNodes(classroom.id, seatingChart, studentsById))
     setLocked(true)
   }
 
   function handleAddTable() {
-    const tableCount = nodes.filter((n) => n.type === "table").length
-    const table = createCanvasTable(tableCount, classroom.id)
-    setNodes((nds) => [
-      ...nds,
-      {
-        id: table.id,
-        type: "table",
-        position: { x: table.x_pos, y: table.y_pos },
-        width: CELL,
-        height: CELL,
-        data: { table },
-      },
-    ])
+    const tableNumber = nodes.filter((n) => n.type === "table").length
+    const table = createCanvasTable(tableNumber, classroom.id)
+
+    const tableNode: SeatingChartTableNode = {
+      id: table.id,
+      type: "table",
+      position: { x: table.x_pos, y: table.y_pos },
+      data: { table_number: tableNumber },
+    }
+    const seatNodes: SeatingChartSeatNode[] = Array.from(
+      { length: SEATS_PER_TABLE },
+      (_, seatIndex) => ({
+        id: getSeatId(table.id, seatIndex),
+        type: "seat",
+        position: getSeatPosition(seatIndex),
+        width: SEAT_NODE_SIZE,
+        height: SEAT_NODE_SIZE,
+        parentId: table.id,
+        draggable: false,
+        selectable: false,
+        deletable: false,
+        data: { seatIndex },
+      })
+    )
+
+    // Regrouping (rather than appending) keeps every seat/table parent
+    // ahead of its children in the array, even if an existing free student
+    // is later dragged onto one of these newly-added seats.
+    setNodes((nds) => {
+      const next = [...nds, tableNode, ...seatNodes]
+      return [
+        ...next.filter((n) => n.type === "table"),
+        ...next.filter((n) => n.type === "seat"),
+        ...next.filter((n) => n.type === "student"),
+      ]
+    })
   }
 
   function handleUnassignAll() {
-    setEdges([])
     setNodes((nds) => nds.filter((n) => n.type !== "student"))
   }
 
@@ -185,11 +177,8 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         <RosterPanel students={unassigned} locked={locked} />
         <SeatingChartCanvas
           nodes={nodes}
-          edges={edges}
           onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
           setNodes={setNodes}
-          setEdges={setEdges}
           locked={locked}
           studentsById={studentsById}
         />

@@ -30,8 +30,8 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty"
-import { getClassrooms } from "~/lib/db"
-import type { Classroom } from "~/lib/types"
+import { getClassrooms } from "~/lib/api"
+import type { Classroom } from "~/lib/schemas"
 import type { Route } from "./+types/classroom-home"
 
 export function meta({}: Route.MetaArgs) {
