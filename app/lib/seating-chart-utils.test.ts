@@ -3,14 +3,11 @@ import type { SeatingChart, Student } from "~/lib/schemas"
 import {
   buildInitialNodes,
   buildSeatingChartPayload,
-  CELL,
   createCanvasTable,
   getSeatId,
-  getSeatOffset,
+  getSeatPosition,
   getUnassignedStudents,
-  MIN_TABLE_SIZE,
   SEATS_PER_TABLE,
-  STUDENT_NODE_SIZE,
   TABLE_OFFSET,
   TABLE_SPACING,
   type SeatingChartNode,
@@ -69,45 +66,9 @@ describe("getSeatId", () => {
   })
 })
 
-describe("getSeatOffset", () => {
-  it("positions the top-left seat (index 0) flush in the table's top-left corner", () => {
-    expect(getSeatOffset(0, MIN_TABLE_SIZE, MIN_TABLE_SIZE)).toEqual({
-      x: 0,
-      y: 0,
-    })
-  })
-
-  it("positions the top-right seat (index 1) flush in the table's top-right corner", () => {
-    expect(getSeatOffset(1, MIN_TABLE_SIZE, MIN_TABLE_SIZE)).toEqual({
-      x: CELL - STUDENT_NODE_SIZE,
-      y: 0,
-    })
-  })
-
-  it("positions the bottom-right seat (index 2) flush in the table's bottom-right corner", () => {
-    expect(getSeatOffset(2, MIN_TABLE_SIZE, MIN_TABLE_SIZE)).toEqual({
-      x: CELL - STUDENT_NODE_SIZE,
-      y: CELL - STUDENT_NODE_SIZE,
-    })
-  })
-
-  it("positions the bottom-left seat (index 3) flush in the table's bottom-left corner", () => {
-    expect(getSeatOffset(3, MIN_TABLE_SIZE, MIN_TABLE_SIZE)).toEqual({
-      x: 0,
-      y: CELL - STUDENT_NODE_SIZE,
-    })
-  })
-
-  it("throws for an out-of-range seat index", () => {
-    expect(() => getSeatOffset(4, MIN_TABLE_SIZE, MIN_TABLE_SIZE)).toThrow()
-  })
-})
-
 describe("buildInitialNodes", () => {
   it("returns no nodes when there are no tables", () => {
-    expect(buildInitialNodes("c1", makeSeatingChart([]), new Map())).toEqual(
-      []
-    )
+    expect(buildInitialNodes("c1", makeSeatingChart([]), new Map())).toEqual([])
   })
 
   it("creates a table node followed by its 4 seat nodes, in canonical order", () => {
@@ -119,8 +80,6 @@ describe("buildInitialNodes", () => {
       id: "c1:0",
       type: "table",
       position: { x: 40, y: 60 },
-      width: MIN_TABLE_SIZE,
-      height: MIN_TABLE_SIZE,
       data: { table_number: 0 },
     })
 
@@ -128,9 +87,7 @@ describe("buildInitialNodes", () => {
       expect(nodes[seatIndex + 1]).toEqual({
         id: getSeatId("c1:0", seatIndex),
         type: "seat",
-        position: getSeatOffset(seatIndex, MIN_TABLE_SIZE, MIN_TABLE_SIZE),
-        width: STUDENT_NODE_SIZE,
-        height: STUDENT_NODE_SIZE,
+        position: getSeatPosition(seatIndex),
         parentId: "c1:0",
         draggable: false,
         selectable: false,
@@ -221,8 +178,6 @@ describe("buildSeatingChartPayload", () => {
       id: "a",
       type: "table",
       position: { x: 0, y: 0 },
-      width: MIN_TABLE_SIZE,
-      height: MIN_TABLE_SIZE,
       data: { table_number: 0 },
     }
     const seatNodes: SeatingChartNode[] = Array.from(
@@ -231,8 +186,6 @@ describe("buildSeatingChartPayload", () => {
         id: getSeatId("a", seatIndex),
         type: "seat",
         position: { x: 0, y: 0 },
-        width: STUDENT_NODE_SIZE,
-        height: STUDENT_NODE_SIZE,
         parentId: "a",
         draggable: false,
         selectable: false,
@@ -255,12 +208,7 @@ describe("buildSeatingChartPayload", () => {
       ...seatNodes,
     ])
 
-    expect(payload.tables[0].seat_assignments).toEqual([
-      null,
-      null,
-      "s1",
-      null,
-    ])
+    expect(payload.tables[0].seat_assignments).toEqual([null, null, "s1", null])
   })
 
   it("round-trips through buildInitialNodes", () => {
@@ -277,12 +225,7 @@ describe("buildSeatingChartPayload", () => {
 
     expect(payload.tables[0].x_pos).toBe(40)
     expect(payload.tables[0].y_pos).toBe(60)
-    expect(payload.tables[0].seat_assignments).toEqual([
-      null,
-      null,
-      "s1",
-      null,
-    ])
+    expect(payload.tables[0].seat_assignments).toEqual([null, null, "s1", null])
   })
 })
 

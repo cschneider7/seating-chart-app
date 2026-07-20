@@ -2,7 +2,7 @@ import { useReactFlow, type Node, type NodeProps } from "@xyflow/react"
 import { Trash2Icon } from "lucide-react"
 import { useContext } from "react"
 import { Button } from "~/components/ui/button"
-import { Item } from "~/components/ui/item"
+import { Item, ItemActions } from "~/components/ui/item"
 import {
   STUDENT_NODE_SIZE,
   type SeatingChartNode,
@@ -20,6 +20,11 @@ export function StudentNode({
   const locked = useContext(LockedContext)
   const { setNodes } = useReactFlow<SeatingChartNode>()
 
+  const styles = {
+    width: STUDENT_NODE_SIZE,
+    height: STUDENT_NODE_SIZE,
+  }
+
   const showSelectedUi = !!selected && !locked
 
   function handleDelete() {
@@ -33,19 +38,21 @@ export function StudentNode({
     >
       <Item
         size="xs"
-        className="relative size-full gap-1 overflow-hidden p-1.5 **:data-[slot=item-title]:text-[10px]"
+        className="relative size-full gap-1 overflow-hidden p-1 **:data-[slot=item-title]:text-[10px]"
       >
         <StudentCardContent student={data.student} />
         {showSelectedUi ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            className="absolute top-0.5 right-0.5"
-            onClick={handleDelete}
-          >
-            <Trash2Icon />
-          </Button>
+          <ItemActions>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="absolute right-0 -bottom-0.5"
+              onClick={handleDelete}
+            >
+              <Trash2Icon />
+            </Button>
+          </ItemActions>
         ) : null}
       </Item>
     </BaseNode>

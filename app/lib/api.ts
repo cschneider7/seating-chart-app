@@ -169,8 +169,6 @@ export async function getClassroomSeatingChart(
   const json = await res.json()
   const seatingChart = z.parse(SeatingChartSchema, json.data)
 
-  console.log(seatingChart)
-
   return seatingChart
 }
 

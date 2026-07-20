@@ -4,10 +4,16 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  type CoordinateExtent,
   type OnNodeDrag,
   type OnNodesChange,
 } from "@xyflow/react"
-import React, { useCallback, useRef, type Dispatch, type SetStateAction } from "react"
+import React, {
+  useCallback,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+} from "react"
 import { LockedContext } from "~/components/nodes/context"
 import { SeatNode } from "~/components/nodes/seat-node"
 import { StudentCardContent } from "~/components/nodes/student-card-content"
@@ -17,10 +23,10 @@ import { Item } from "~/components/ui/item"
 import { ScrollArea } from "~/components/ui/scroll-area"
 import type { Student } from "~/lib/schemas"
 import {
+  GRID_STEP,
   STUDENT_NODE_SIZE,
   type Point,
   type SeatingChartNode,
-  type SeatingChartSeatNode,
   type SeatingChartStudentNode,
 } from "~/lib/seating-chart-utils"
 
@@ -92,10 +98,6 @@ interface SeatingChartCanvasProps {
 
 type DragSnapshot = { parentId?: string; position: Point }
 
-function isSeatNode(node: SeatingChartNode): node is SeatingChartSeatNode {
-  return node.type === "seat"
-}
-
 function SeatingChartCanvasInner({
   nodes,
   onNodesChange,
@@ -105,10 +107,13 @@ function SeatingChartCanvasInner({
 }: SeatingChartCanvasProps) {
   const { getIntersectingNodes, getInternalNode, screenToFlowPosition } =
     useReactFlow<SeatingChartNode>()
+  const boundary: CoordinateExtent = [
+    [-2000, 2000],
+    [2000, 2000],
+  ]
 
-  // Captures a dragged student's parentId/position before the drag mutates
-  // it, so a rejected/ambiguous drop (see decisions in the seating-chart
-  // refactor plan) has a committed state to snap back to.
+  // Captures a dragged student's parentId/position before a drag, so a rejected drop
+  // snaps the student back.
   const dragStartState = useRef(new Map<string, DragSnapshot>())
 
   const clearHighlights = useCallback(
@@ -136,7 +141,7 @@ function SeatingChartCanvasInner({
         return
       }
 
-      const hitSeat = getIntersectingNodes(node).find(isSeatNode)
+      const hitSeat = getIntersectingNodes(node).find((n) => n.type === "seat")
       const occupied =
         !!hitSeat &&
         nodes.some(
@@ -148,7 +153,12 @@ function SeatingChartCanvasInner({
 
       setNodes((nds) =>
         nds.map((n) => {
-          const className = hitSeat?.id !== n.id ? "" : occupied ? "highlight-rejected" : "highlight"
+          const className =
+            hitSeat?.id !== n.id
+              ? ""
+              : occupied
+                ? "highlight-rejected"
+                : "highlight"
           return n.className === className ? n : { ...n, className }
         })
       )
@@ -177,7 +187,7 @@ function SeatingChartCanvasInner({
         )
       }
 
-      const hitSeat = getIntersectingNodes(node).find(isSeatNode)
+      const hitSeat = getIntersectingNodes(node).find((n) => n.type === "seat")
 
       if (hitSeat) {
         const occupant = nodes.find(
@@ -264,7 +274,9 @@ function SeatingChartCanvasInner({
         height: STUDENT_NODE_SIZE,
       }
 
-      const hitSeat = getIntersectingNodes(dropRect).find(isSeatNode)
+      const hitSeat = getIntersectingNodes(dropRect).find(
+        (n) => n.type === "seat"
+      )
       const occupied =
         !!hitSeat &&
         nodes.some((n) => n.type === "student" && n.parentId === hitSeat.id)
@@ -287,7 +299,14 @@ function SeatingChartCanvasInner({
 
       setNodes((nds) => nds.concat(newNode))
     },
-    [locked, studentsById, screenToFlowPosition, getIntersectingNodes, nodes, setNodes]
+    [
+      locked,
+      studentsById,
+      screenToFlowPosition,
+      getIntersectingNodes,
+      nodes,
+      setNodes,
+    ]
   )
 
   return (
@@ -304,8 +323,12 @@ function SeatingChartCanvasInner({
           onDragOver={onDragOver}
           nodesDraggable={!locked}
           elementsSelectable={!locked}
+          snapToGrid
+          snapGrid={[GRID_STEP, GRID_STEP]}
+          minZoom={0.25}
+          maxZoom={2}
         >
-          <Background />
+          <Background gap={GRID_STEP} size={2} />
         </ReactFlow>
         <Controls showInteractive={false} />
       </LockedContext>

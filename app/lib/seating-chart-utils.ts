@@ -7,10 +7,10 @@ export const TABLES_PER_ROW = 4
 export const TABLE_SPACING = GRID_STEP * 13
 export const TABLE_OFFSET = GRID_STEP * 2
 
-export const STUDENT_NODE_SIZE = 50
-
-export const CELL = 110 // spacing unit along a side / a TableNode's base size, independent of STUDENT_NODE_SIZE
-export const MIN_TABLE_SIZE = CELL // the fixed table size until resizable tables are built (future work)
+export const SEAT_PADDING = 6
+export const TABLE_NODE_SIZE = 200 // the fixed table size until resizable tables are built (future work)
+export const SEAT_NODE_SIZE = (TABLE_NODE_SIZE - SEAT_PADDING * 3) / 2
+export const STUDENT_NODE_SIZE = SEAT_NODE_SIZE
 
 export type Point = { x: number; y: number }
 
@@ -22,8 +22,6 @@ export type SeatingChartTableNode = {
   id: string
   type: "table"
   position: Point
-  width: number
-  height: number
   selected?: boolean
   className?: string
   data: TableNodeData
@@ -32,8 +30,6 @@ export type SeatingChartSeatNode = {
   id: string
   type: "seat"
   position: Point
-  width: number
-  height: number
   parentId: string // a seat always belongs to a table
   draggable: false
   selectable: false
@@ -52,9 +48,7 @@ export type SeatingChartStudentNode = {
   data: StudentNodeData
 }
 export type SeatingChartNode =
-  | SeatingChartTableNode
-  | SeatingChartSeatNode
-  | SeatingChartStudentNode
+  SeatingChartTableNode | SeatingChartSeatNode | SeatingChartStudentNode
 
 export function getSeatId(tableId: string, seatIndex: number): string {
   return `${tableId}:${seatIndex}`
@@ -65,22 +59,25 @@ export function getSeatId(tableId: string, seatIndex: number): string {
  * 0-3 maps to top-left/top-right/bottom-right/bottom-left), flush inside
  * the table's own corners.
  */
-export function getSeatOffset(
-  seatIndex: number,
-  tableWidth: number,
-  tableHeight: number
-): Point {
-  const size = STUDENT_NODE_SIZE
-
+export function getSeatPosition(seatIndex: number): Point {
   switch (seatIndex) {
     case 0: // top-left
-      return { x: 0, y: 0 }
+      return { x: SEAT_PADDING, y: SEAT_PADDING }
     case 1: // top-right
-      return { x: tableWidth - size, y: 0 }
+      return {
+        x: TABLE_NODE_SIZE - SEAT_NODE_SIZE - SEAT_PADDING,
+        y: SEAT_PADDING,
+      }
     case 2: // bottom-right
-      return { x: tableWidth - size, y: tableHeight - size }
+      return {
+        x: TABLE_NODE_SIZE - SEAT_NODE_SIZE - SEAT_PADDING,
+        y: TABLE_NODE_SIZE - SEAT_NODE_SIZE - SEAT_PADDING,
+      }
     case 3: // bottom-left
-      return { x: 0, y: tableHeight - size }
+      return {
+        x: SEAT_PADDING,
+        y: TABLE_NODE_SIZE - SEAT_NODE_SIZE - SEAT_PADDING,
+      }
     default:
       throw new Error(`Invalid seatIndex: ${seatIndex}`)
   }
@@ -110,10 +107,6 @@ export function buildInitialNodes(
 ): SeatingChartNode[] {
   const nodes: SeatingChartNode[] = []
 
-  // TODO: resizable tables
-  const width = MIN_TABLE_SIZE
-  const height = MIN_TABLE_SIZE
-
   for (const table of seatingChart.tables) {
     const tableId = `${classroomId}:${table.table_number}`
 
@@ -121,8 +114,6 @@ export function buildInitialNodes(
       id: tableId,
       type: "table",
       position: { x: table.x_pos, y: table.y_pos },
-      width,
-      height,
       data: { table_number: table.table_number },
     }
     nodes.push(tableNode)
@@ -132,9 +123,7 @@ export function buildInitialNodes(
       const seatNode: SeatingChartSeatNode = {
         id: seatId,
         type: "seat",
-        position: getSeatOffset(seatIndex, width, height),
-        width: STUDENT_NODE_SIZE,
-        height: STUDENT_NODE_SIZE,
+        position: getSeatPosition(seatIndex),
         parentId: tableId,
         draggable: false,
         selectable: false,

@@ -18,13 +18,12 @@ import type { SeatingChart } from "~/lib/schemas"
 import {
   buildInitialNodes,
   buildSeatingChartPayload,
-  CELL,
   createCanvasTable,
   getSeatId,
-  getSeatOffset,
+  getSeatPosition,
   getUnassignedStudents,
+  SEAT_NODE_SIZE,
   SEATS_PER_TABLE,
-  STUDENT_NODE_SIZE,
   type SeatingChartSeatNode,
   type SeatingChartTableNode,
 } from "../../lib/seating-chart-utils"
@@ -101,8 +100,6 @@ export default function Component({ loaderData }: Route.ComponentProps) {
       id: table.id,
       type: "table",
       position: { x: table.x_pos, y: table.y_pos },
-      width: CELL,
-      height: CELL,
       data: { table_number: tableNumber },
     }
     const seatNodes: SeatingChartSeatNode[] = Array.from(
@@ -110,9 +107,9 @@ export default function Component({ loaderData }: Route.ComponentProps) {
       (_, seatIndex) => ({
         id: getSeatId(table.id, seatIndex),
         type: "seat",
-        position: getSeatOffset(seatIndex, CELL, CELL),
-        width: STUDENT_NODE_SIZE,
-        height: STUDENT_NODE_SIZE,
+        position: getSeatPosition(seatIndex),
+        width: SEAT_NODE_SIZE,
+        height: SEAT_NODE_SIZE,
         parentId: table.id,
         draggable: false,
         selectable: false,

@@ -1,5 +1,5 @@
 import { ItemContent, ItemHeader, ItemTitle } from "~/components/ui/item"
-import type { Student } from "~/lib/types"
+import type { Student } from "~/lib/schemas"
 
 export function StudentCardContent({ student }: { student: Student }) {
   return (

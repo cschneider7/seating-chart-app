@@ -15,8 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "~/components/ui/sidebar"
-
-import type { Student } from "~/lib/types"
+import type { Student } from "~/lib/schemas"
 
 function SearchForm() {
   return (
