@@ -260,6 +260,7 @@ pub async fn update_seating_chart_handler(
         )
     })?;
 
+    let mut chart_tables: Vec<TableSchema> = Vec::new();
     for (index, table) in body.tables.iter().enumerate() {
         let table_number = index as i32;
         let seat_count = table.seat_assignments.len() as i16;
@@ -306,6 +307,14 @@ pub async fn update_seating_chart_handler(
                 )
             })?;
         }
+
+        let chart_table = TableSchema {
+            table_number: table_number,
+            x_pos: table.x_pos,
+            y_pos: table.y_pos,
+            seat_assignments: table.seat_assignments.clone(),
+        };
+        chart_tables.push(chart_table);
     }
 
     tx.commit().await.map_err(|e| {
@@ -318,7 +327,10 @@ pub async fn update_seating_chart_handler(
     })?;
 
     let response = json!({
-        "message": "Seating chart updated successfully"
+        "data": {
+            "classroom_id": classroom_id,
+            "tables": chart_tables
+        }
     });
     Ok((StatusCode::OK, Json(response)))
 }
@@ -603,7 +615,7 @@ mod tests {
         let student_id = insert_student(&pool, 1, "Bob").await;
         let body = json!({
             "tables": [
-                { "x_pos": 20, "y_pos": 40, "seats": [student_id, null] },
+                { "table_number": 0, "x_pos": 20, "y_pos": 40, "seat_assignments": [student_id, null] },
             ]
         });
         let response = app
@@ -652,9 +664,9 @@ mod tests {
         // request array index and not incidentally by x_pos or insert order.
         let body = json!({
             "tables": [
-                { "x_pos": 900, "y_pos": 0, "seats": [] },
-                { "x_pos": 100, "y_pos": 0, "seats": [] },
-                { "x_pos": 500, "y_pos": 0, "seats": [] },
+                { "table_number": 0, "x_pos": 900, "y_pos": 0, "seat_assignments": [] },
+                { "table_number": 1, "x_pos": 100, "y_pos": 0, "seat_assignments": [] },
+                { "table_number": 2, "x_pos": 500, "y_pos": 0, "seat_assignments": [] },
             ]
         });
         let response = app
@@ -729,11 +741,10 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
-        let assignments = json["data"].as_array().unwrap();
-        assert_eq!(assignments.len(), 1);
-        assert_eq!(assignments[0]["table_id"], table.id.to_string());
-        assert_eq!(assignments[0]["position"], 0);
-        assert_eq!(assignments[0]["student_id"], student_id.to_string());
+        let assignments = json["data"]["tables"][0]["seat_assignments"]
+            .as_array()
+            .unwrap();
+        assert_eq!(assignments[0], student_id.to_string());
 
         Ok(())
     }
@@ -767,13 +778,10 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
-        let assignments = json["data"].as_array().unwrap();
-        assert_eq!(assignments.len(), 2);
-        assert_eq!(assignments[0]["table_id"], first_table.id.to_string());
-        assert_eq!(assignments[0]["student_id"], student_a.to_string());
-        assert_eq!(assignments[1]["table_id"], second_table.id.to_string());
-        assert_eq!(assignments[1]["student_id"], student_b.to_string());
-
+        let tables = json["data"]["tables"].as_array().unwrap();
+        assert_eq!(tables.len(), 2);
+        assert_eq!(tables[0]["seat_assignments"][0], student_a.to_string());
+        assert_eq!(tables[1]["seat_assignments"][0], student_b.to_string());
         Ok(())
     }
 
@@ -797,7 +805,7 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
-        assert!(json["data"].as_array().unwrap().is_empty());
+        assert!(json["data"]["tables"].as_array().unwrap().is_empty());
 
         Ok(())
     }
