@@ -309,7 +309,7 @@ pub async fn update_seating_chart_handler(
         }
 
         let chart_table = TableSchema {
-            table_number: table_number,
+            table_number,
             x_pos: table.x_pos,
             y_pos: table.y_pos,
             seat_assignments: table.seat_assignments.clone(),
