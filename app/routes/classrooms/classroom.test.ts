@@ -87,21 +87,21 @@ describe("classroom loader", () => {
 })
 
 describe("classroom action", () => {
+  const chart: SeatingChart = {
+    tables: [
+      {
+        table_number: 0,
+        x_pos: 40,
+        y_pos: 60,
+        seat_assignments: [null, "s1", null, null],
+      },
+    ],
+  }
+
   it("PUTs the seating chart payload straight through", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }))
 
-    const chart: SeatingChart = {
-      tables: [
-        {
-          table_number: 0,
-          x_pos: 40,
-          y_pos: 60,
-          seat_assignments: [null, "s1", null, null],
-        },
-      ],
-    }
-
-    await action(actionArgs(chart))
+    const result = await action(actionArgs(chart))
 
     expect(fetch).toHaveBeenCalledTimes(1)
     const [url, init] = vi.mocked(fetch).mock.calls[0]
@@ -110,5 +110,18 @@ describe("classroom action", () => {
     )
     expect(init?.method).toBe("PUT")
     expect(JSON.parse(init?.body as string)).toEqual(chart)
+    expect(result).toEqual({ ok: true })
+  })
+
+  it("returns the backend's message instead of throwing when the save fails", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ message: "Seat already taken" }), {
+        status: 409,
+      })
+    )
+
+    const result = await action(actionArgs(chart))
+
+    expect(result).toEqual({ ok: false, error: "Seat already taken" })
   })
 })

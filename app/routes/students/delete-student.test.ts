@@ -30,7 +30,7 @@ describe("delete-student action", () => {
   })
 
   // The action's try/catch swallows the error deleteStudent() throws on a
-  // non-ok response (see app/lib/db.ts), so it redirects either way.
+  // non-ok response (see app/lib/api.ts), so it redirects either way.
   it("redirects even when the delete request fails", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(null, { status: 500, statusText: "Internal Server Error" })

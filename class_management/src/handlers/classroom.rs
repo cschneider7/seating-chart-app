@@ -211,54 +211,19 @@ pub async fn update_seating_chart_handler(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use axum::{
-        Router,
         body::Body,
         http::{Request, StatusCode},
-        response::Response,
     };
-    use http_body_util::BodyExt;
-    use serde_json::{Value, json};
+    use serde_json::json;
     use tower::ServiceExt;
     use uuid::Uuid;
 
     use super::*;
     use crate::{
         model::{SeatModel, TableModel},
-        routes::create_router,
+        test_support::{app, body_json, insert_classroom, json_request},
     };
-
-    fn app(pool: sqlx::PgPool) -> Router {
-        create_router(Arc::new(AppState { db: pool }))
-    }
-
-    async fn body_json(response: Response) -> Value {
-        let bytes = response.into_body().collect().await.unwrap().to_bytes();
-        serde_json::from_slice(&bytes).unwrap()
-    }
-
-    fn json_request(method: &str, uri: &str, body: Value) -> Request<Body> {
-        Request::builder()
-            .method(method)
-            .uri(uri)
-            .header("content-type", "application/json")
-            .body(Body::from(body.to_string()))
-            .unwrap()
-    }
-
-    async fn insert_classroom(pool: &sqlx::PgPool, subject: &str, period: i16) -> ClassroomModel {
-        sqlx::query_as!(
-            ClassroomModel,
-            r#"INSERT INTO classrooms (subject, period) VALUES ($1, $2) RETURNING *"#,
-            subject,
-            period
-        )
-        .fetch_one(pool)
-        .await
-        .unwrap()
-    }
 
     async fn fetch_classroom(pool: &sqlx::PgPool, id: Uuid) -> Option<ClassroomModel> {
         sqlx::query_as!(

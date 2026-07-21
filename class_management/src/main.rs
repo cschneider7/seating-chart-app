@@ -11,6 +11,8 @@ mod handlers;
 mod model;
 mod routes;
 mod schema;
+#[cfg(test)]
+mod test_support;
 
 const MAX_CONNECTIONS: u32 = 10;
 
