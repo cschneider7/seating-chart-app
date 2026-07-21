@@ -11,6 +11,13 @@ A seating chart / classroom management app with two independent halves that run 
 
 The frontend calls the backend directly over HTTP at hardcoded `http://localhost:3000` URLs, all funneled through `app/lib/api.ts` — there is no shared client/server code or generated API types between the two halves, so `app/lib/types.ts`/`app/lib/schemas.ts` (frontend) and `model.rs`/`schema.rs` (backend) must be kept in sync manually when the API shape changes.
 
+## Installed skills
+
+Two Claude Code skills are installed in this repo (tracked in `skills-lock.json`, content under `.agents/skills/`): `react-router` and `shadcn`. Both auto-trigger on their respective topics, so no manual invocation is needed — but be aware they exist and take precedence over prior/general knowledge:
+
+- **react-router** — this app is Framework Mode (`@react-router/dev`, SSR, `app/routes.ts`-based routing per the Frontend architecture section below); load the Framework Mode reference specifically, not Data/Declarative/RSC mode guidance.
+- **shadcn** — this app uses the `base-rhea` style on Base UI (see the shadcn bullet in Frontend architecture below); use the skill's CLI commands (`npx shadcn@latest ...`) to add/update components rather than hand-writing them, and check `npx shadcn@latest info --json` for current project/component state before assuming what's installed.
+
 ## Commands
 
 ### Frontend (run from repo root)
