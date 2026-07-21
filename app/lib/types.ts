@@ -3,6 +3,8 @@ export interface Table {
   tableNumber: number
   x_pos: number
   y_pos: number
+  rows: number
+  cols: number
   seats: Seat[]
 }
 

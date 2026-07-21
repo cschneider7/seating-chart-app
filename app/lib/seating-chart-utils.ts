@@ -2,20 +2,21 @@ import type { SeatingChart, Student } from "~/lib/schemas"
 import type { Table } from "~/lib/types"
 
 export const GRID_STEP = 20
-export const SEATS_PER_TABLE = 4
+export const DEFAULT_TABLE_ROWS = 2
+export const DEFAULT_TABLE_COLS = 2
+export const MAX_TABLE_DIMENSION = 15
 export const TABLES_PER_ROW = 4
 export const TABLE_SPACING = GRID_STEP * 13
 export const TABLE_OFFSET = GRID_STEP * 2
 
 export const SEAT_PADDING = 6
-export const TABLE_NODE_SIZE = 200 // the fixed table size until resizable tables are built (future work)
-export const SEAT_NODE_SIZE = (TABLE_NODE_SIZE - SEAT_PADDING * 3) / 2
+export const SEAT_NODE_SIZE = 91 // fixed seat cell size; a table's pixel size grows with rows/cols instead
 export const STUDENT_NODE_SIZE = SEAT_NODE_SIZE
 
 export type Point = { x: number; y: number }
 
-export type TableNodeData = { table_number: number }
-export type SeatNodeData = { seatIndex: number } // tableId is derivable via parentId
+export type TableNodeData = { table_number: number; rows: number; cols: number }
+export type SeatNodeData = { row: number; col: number } // tableId is derivable via parentId
 export type StudentNodeData = { student: Student }
 
 export type SeatingChartTableNode = {
@@ -50,37 +51,28 @@ export type SeatingChartStudentNode = {
 export type SeatingChartNode =
   SeatingChartTableNode | SeatingChartSeatNode | SeatingChartStudentNode
 
-export function getSeatId(tableId: string, seatIndex: number): string {
-  return `${tableId}:${seatIndex}`
+export function getSeatId(tableId: string, row: number, col: number): string {
+  return `${tableId}:${row}:${col}`
 }
 
 /**
- * Computes a seat's fixed position relative to its parent table (seatIndex
- * 0-3 maps to top-left/top-right/bottom-right/bottom-left), flush inside
- * the table's own corners.
+ * Computes a seat's position relative to its parent table from its (row,
+ * col) grid coordinate. Cell size is fixed, so a table's pixel size grows
+ * with its rows/cols rather than seats shrinking to fit.
  */
-export function getSeatPosition(seatIndex: number): Point {
-  switch (seatIndex) {
-    case 0: // top-left
-      return { x: SEAT_PADDING, y: SEAT_PADDING }
-    case 1: // top-right
-      return {
-        x: TABLE_NODE_SIZE - SEAT_NODE_SIZE - SEAT_PADDING,
-        y: SEAT_PADDING,
-      }
-    case 2: // bottom-right
-      return {
-        x: TABLE_NODE_SIZE - SEAT_NODE_SIZE - SEAT_PADDING,
-        y: TABLE_NODE_SIZE - SEAT_NODE_SIZE - SEAT_PADDING,
-      }
-    case 3: // bottom-left
-      return {
-        x: SEAT_PADDING,
-        y: TABLE_NODE_SIZE - SEAT_NODE_SIZE - SEAT_PADDING,
-      }
-    default:
-      throw new Error(`Invalid seatIndex: ${seatIndex}`)
-  }
+export function getSeatPosition(row: number, col: number): Point {
+  const step = SEAT_NODE_SIZE + SEAT_PADDING
+  return { x: SEAT_PADDING + col * step, y: SEAT_PADDING + row * step }
+}
+
+/** Computes a table's rendered pixel size from its rows/cols. */
+export function getTableNodeSize(
+  rows: number,
+  cols: number
+): { width: number; height: number } {
+  const dimSize = (n: number) =>
+    n * (SEAT_NODE_SIZE + SEAT_PADDING) + SEAT_PADDING
+  return { width: dimSize(cols), height: dimSize(rows) }
 }
 
 export function createCanvasTable(index: number, classroomId: string): Table {
@@ -89,7 +81,9 @@ export function createCanvasTable(index: number, classroomId: string): Table {
     tableNumber: 0, // Placeholder value
     x_pos: TABLE_OFFSET + (index % TABLES_PER_ROW) * TABLE_SPACING,
     y_pos: TABLE_OFFSET + Math.floor(index / TABLES_PER_ROW) * TABLE_SPACING,
-    seats: Array(SEATS_PER_TABLE),
+    rows: DEFAULT_TABLE_ROWS,
+    cols: DEFAULT_TABLE_COLS,
+    seats: Array(DEFAULT_TABLE_ROWS * DEFAULT_TABLE_COLS),
   }
 }
 
@@ -114,45 +108,52 @@ export function buildInitialNodes(
       id: tableId,
       type: "table",
       position: { x: table.x_pos, y: table.y_pos },
-      data: { table_number: table.table_number },
+      data: {
+        table_number: table.table_number,
+        rows: table.rows,
+        cols: table.cols,
+      },
     }
     nodes.push(tableNode)
 
-    for (let seatIndex = 0; seatIndex < SEATS_PER_TABLE; seatIndex++) {
-      const seatId = getSeatId(tableId, seatIndex)
-      const seatNode: SeatingChartSeatNode = {
-        id: seatId,
-        type: "seat",
-        position: getSeatPosition(seatIndex),
-        parentId: tableId,
-        draggable: false,
-        selectable: false,
-        deletable: false,
-        data: { seatIndex },
-      }
-      nodes.push(seatNode)
+    for (let row = 0; row < table.rows; row++) {
+      for (let col = 0; col < table.cols; col++) {
+        const seatId = getSeatId(tableId, row, col)
+        const seatNode: SeatingChartSeatNode = {
+          id: seatId,
+          type: "seat",
+          position: getSeatPosition(row, col),
+          parentId: tableId,
+          draggable: false,
+          selectable: false,
+          deletable: false,
+          data: { row, col },
+        }
+        nodes.push(seatNode)
 
-      const studentId = table.seat_assignments[seatIndex] ?? null
-      if (!studentId) {
-        continue
-      }
-      const student = studentsById.get(studentId)
-      if (!student) {
-        console.warn(
-          "Invalid seat assignment: could not find student with id: %s",
-          studentId
-        )
-        continue
-      }
+        const seatIndex = row * table.cols + col
+        const studentId = table.seat_assignments[seatIndex] ?? null
+        if (!studentId) {
+          continue
+        }
+        const student = studentsById.get(studentId)
+        if (!student) {
+          console.warn(
+            "Invalid seat assignment: could not find student with id: %s",
+            studentId
+          )
+          continue
+        }
 
-      const studentNode: SeatingChartStudentNode = {
-        id: studentId,
-        type: "student",
-        position: { x: 0, y: 0 },
-        parentId: seatId,
-        data: { student },
+        const studentNode: SeatingChartStudentNode = {
+          id: studentId,
+          type: "student",
+          position: { x: 0, y: 0 },
+          parentId: seatId,
+          data: { student },
+        }
+        nodes.push(studentNode)
       }
-      nodes.push(studentNode)
     }
   }
 
@@ -177,7 +178,7 @@ export function reorderNodes(nodes: SeatingChartNode[]): SeatingChartNode[] {
 /**
  * Builds the backend payload from the current seating chart canvas state,
  * deriving each table's dense seat_assignments array by walking that
- * table's seat children (by parentId, in seatIndex order) and reading each
+ * table's seat children (by parentId, in row-major order) and reading each
  * seat's student child (if any) - no dependence on node array order.
  * @param nodes - List of table, seat, and student nodes
  * @returns Body payload to be used to call seating chart API
@@ -199,7 +200,7 @@ export function buildSeatingChartPayload(
     tables: tableNodes.map((table, idx) => {
       const seats = seatNodes
         .filter((seat) => seat.parentId === table.id)
-        .sort((a, b) => a.data.seatIndex - b.data.seatIndex)
+        .sort((a, b) => a.data.row - b.data.row || a.data.col - b.data.col)
       const seat_assignments = seats.map(
         (seat) =>
           studentNodes.find((student) => student.parentId === seat.id)?.id ??
@@ -208,6 +209,8 @@ export function buildSeatingChartPayload(
 
       return {
         table_number: idx,
+        rows: table.data.rows,
+        cols: table.data.cols,
         x_pos: table.position.x,
         y_pos: table.position.y,
         seat_assignments,

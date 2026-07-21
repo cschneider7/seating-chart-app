@@ -34,6 +34,8 @@ describe("classroom loader", () => {
       tables: [
         {
           table_number: 1,
+          rows: 2,
+          cols: 2,
           x_pos: 0,
           y_pos: 0,
           seat_assignments: [null, null, null, null],
@@ -91,6 +93,8 @@ describe("classroom action", () => {
     tables: [
       {
         table_number: 0,
+        rows: 2,
+        cols: 2,
         x_pos: 40,
         y_pos: 60,
         seat_assignments: [null, "s1", null, null],

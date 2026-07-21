@@ -24,7 +24,8 @@ pub struct TableModel {
     pub id: Uuid,
     pub classroom_id: Uuid,
     pub table_number: i32,
-    pub seat_count: i16,
+    pub rows: i16,
+    pub cols: i16,
     pub x_pos: i32,
     pub y_pos: i32,
 }

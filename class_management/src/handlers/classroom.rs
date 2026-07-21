@@ -121,13 +121,15 @@ pub async fn get_seating_chart_handler(
         TableSchema,
         r#"SELECT
             t.table_number,
+            t.rows,
+            t.cols,
             t.x_pos,
             t.y_pos,
             ARRAY_AGG(s.student_id ORDER BY s.seat_number) as "seat_assignments!: Vec<Option<Uuid>>"
         FROM tables t
         INNER JOIN seats s ON (t.id = s.table_id)
         WHERE t.classroom_id = $1
-        GROUP BY t.table_number, t.x_pos, t.y_pos
+        GROUP BY t.table_number, t.rows, t.cols, t.x_pos, t.y_pos
         "#,
         &classroom_id
     )
@@ -160,15 +162,15 @@ pub async fn update_seating_chart_handler(
     let mut chart_tables: Vec<TableSchema> = Vec::new();
     for (index, table) in body.tables.iter().enumerate() {
         let table_number = index as i32;
-        let seat_count = table.seat_assignments.len() as i16;
 
         let table_id = sqlx::query_scalar!(
-            r#"INSERT INTO tables (classroom_id, table_number, seat_count, x_pos, y_pos)
-            VALUES ($1, $2, $3, $4, $5)
+            r#"INSERT INTO tables (classroom_id, table_number, rows, cols, x_pos, y_pos)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING id"#,
             &classroom_id,
             table_number,
-            seat_count,
+            table.rows,
+            table.cols,
             table.x_pos,
             table.y_pos,
         )
@@ -191,6 +193,8 @@ pub async fn update_seating_chart_handler(
 
         let chart_table = TableSchema {
             table_number,
+            rows: table.rows,
+            cols: table.cols,
             x_pos: table.x_pos,
             y_pos: table.y_pos,
             seat_assignments: table.seat_assignments.clone(),
@@ -240,18 +244,20 @@ mod tests {
         pool: &sqlx::PgPool,
         classroom_id: Uuid,
         table_number: i32,
-        seat_count: i16,
+        rows: i16,
+        cols: i16,
         x_pos: i32,
         y_pos: i32,
     ) -> TableModel {
         sqlx::query_as!(
             TableModel,
-            r#"INSERT INTO tables (classroom_id, table_number, seat_count, x_pos, y_pos)
-            VALUES ($1, $2, $3, $4, $5)
+            r#"INSERT INTO tables (classroom_id, table_number, rows, cols, x_pos, y_pos)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING *"#,
             classroom_id,
             table_number,
-            seat_count,
+            rows,
+            cols,
             x_pos,
             y_pos
         )
@@ -447,14 +453,14 @@ mod tests {
         pool: sqlx::PgPool,
     ) -> sqlx::Result<()> {
         let classroom = insert_classroom(&pool, "Math 2", 3).await;
-        let old_table = insert_table(&pool, classroom.id, 0, 4, 0, 0).await;
+        let old_table = insert_table(&pool, classroom.id, 0, 2, 2, 0, 0).await;
         insert_seat(&pool, old_table.id, None, 0).await;
         let app = app(pool.clone());
 
         let student_id = insert_student(&pool, 1, "Bob").await;
         let body = json!({
             "tables": [
-                { "table_number": 0, "x_pos": 20, "y_pos": 40, "seat_assignments": [student_id, null] },
+                { "table_number": 0, "rows": 1, "cols": 2, "x_pos": 20, "y_pos": 40, "seat_assignments": [student_id, null] },
             ]
         });
         let response = app
@@ -470,7 +476,8 @@ mod tests {
         let tables = fetch_tables_for_classroom(&pool, classroom.id).await;
         assert_eq!(tables.len(), 1);
         assert_ne!(tables[0].id, old_table.id);
-        assert_eq!(tables[0].seat_count, 2);
+        assert_eq!(tables[0].rows, 1);
+        assert_eq!(tables[0].cols, 2);
         assert_eq!(tables[0].x_pos, 20);
         assert_eq!(tables[0].y_pos, 40);
 
@@ -503,9 +510,9 @@ mod tests {
         // request array index and not incidentally by x_pos or insert order.
         let body = json!({
             "tables": [
-                { "table_number": 0, "x_pos": 900, "y_pos": 0, "seat_assignments": [] },
-                { "table_number": 1, "x_pos": 100, "y_pos": 0, "seat_assignments": [] },
-                { "table_number": 2, "x_pos": 500, "y_pos": 0, "seat_assignments": [] },
+                { "table_number": 0, "rows": 1, "cols": 1, "x_pos": 900, "y_pos": 0, "seat_assignments": [] },
+                { "table_number": 1, "rows": 1, "cols": 1, "x_pos": 100, "y_pos": 0, "seat_assignments": [] },
+                { "table_number": 2, "rows": 1, "cols": 1, "x_pos": 500, "y_pos": 0, "seat_assignments": [] },
             ]
         });
         let response = app
@@ -535,7 +542,7 @@ mod tests {
         pool: sqlx::PgPool,
     ) -> sqlx::Result<()> {
         let classroom = insert_classroom(&pool, "Math 2", 3).await;
-        insert_table(&pool, classroom.id, 0, 4, 0, 0).await;
+        insert_table(&pool, classroom.id, 0, 2, 2, 0, 0).await;
         let app = app(pool.clone());
 
         let body = json!({ "tables": [] });
@@ -561,7 +568,7 @@ mod tests {
     #[sqlx::test(migrations = "../migrations")]
     async fn get_seating_chart_returns_only_assigned_seats(pool: sqlx::PgPool) -> sqlx::Result<()> {
         let classroom = insert_classroom(&pool, "Math 2", 3).await;
-        let table = insert_table(&pool, classroom.id, 0, 4, 0, 0).await;
+        let table = insert_table(&pool, classroom.id, 0, 2, 2, 0, 0).await;
         let student_id = insert_student(&pool, 1, "Bob").await;
         insert_seat(&pool, table.id, Some(student_id), 0).await;
         insert_seat(&pool, table.id, None, 1).await;
@@ -580,6 +587,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::OK);
 
         let json = body_json(response).await;
+        assert_eq!(json["data"]["tables"][0]["rows"], 2);
+        assert_eq!(json["data"]["tables"][0]["cols"], 2);
         let assignments = json["data"]["tables"][0]["seat_assignments"]
             .as_array()
             .unwrap();
@@ -596,8 +605,8 @@ mod tests {
         // x_pos/y_pos deliberately sort the opposite of insertion order, so
         // the response order can only be right if it's driven by
         // table_number and not accidentally by position or id.
-        let first_table = insert_table(&pool, classroom.id, 0, 4, 100, 100).await;
-        let second_table = insert_table(&pool, classroom.id, 1, 4, 0, 0).await;
+        let first_table = insert_table(&pool, classroom.id, 0, 2, 2, 100, 100).await;
+        let second_table = insert_table(&pool, classroom.id, 1, 2, 2, 0, 0).await;
         let student_a = insert_student(&pool, 1, "Alice").await;
         let student_b = insert_student(&pool, 2, "Bob").await;
         insert_seat(&pool, second_table.id, Some(student_b), 0).await;

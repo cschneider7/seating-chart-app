@@ -23,7 +23,6 @@ import {
   getSeatPosition,
   getUnassignedStudents,
   reorderNodes,
-  SEATS_PER_TABLE,
   type SeatingChartSeatNode,
   type SeatingChartTableNode,
 } from "../../lib/seating-chart-utils"
@@ -111,21 +110,23 @@ export default function Component({ loaderData }: Route.ComponentProps) {
       id: table.id,
       type: "table",
       position: { x: table.x_pos, y: table.y_pos },
-      data: { table_number: tableNumber },
+      data: { table_number: tableNumber, rows: table.rows, cols: table.cols },
     }
-    const seatNodes: SeatingChartSeatNode[] = Array.from(
-      { length: SEATS_PER_TABLE },
-      (_, seatIndex) => ({
-        id: getSeatId(table.id, seatIndex),
-        type: "seat",
-        position: getSeatPosition(seatIndex),
-        parentId: table.id,
-        draggable: false,
-        selectable: false,
-        deletable: false,
-        data: { seatIndex },
-      })
-    )
+    const seatNodes: SeatingChartSeatNode[] = []
+    for (let row = 0; row < table.rows; row++) {
+      for (let col = 0; col < table.cols; col++) {
+        seatNodes.push({
+          id: getSeatId(table.id, row, col),
+          type: "seat",
+          position: getSeatPosition(row, col),
+          parentId: table.id,
+          draggable: false,
+          selectable: false,
+          deletable: false,
+          data: { row, col },
+        })
+      }
+    }
 
     // Order nodes so that parent nodes always come before child nodes
     setNodes((nds) => reorderNodes([...nds, tableNode, ...seatNodes]))
