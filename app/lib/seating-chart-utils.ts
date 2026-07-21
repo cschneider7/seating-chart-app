@@ -209,6 +209,11 @@ export function buildSeatingChartPayload(
   const studentNodes = nodes.filter(
     (n): n is SeatingChartStudentNode => n.type === "student"
   )
+  const studentBySeatId = new Map(
+    studentNodes
+      .filter((student) => student.parentId)
+      .map((student) => [student.parentId, student])
+  )
 
   return {
     tables: tableNodes.map((table, idx) => {
@@ -216,9 +221,7 @@ export function buildSeatingChartPayload(
         .filter((seat) => seat.parentId === table.id)
         .sort((a, b) => a.data.row - b.data.row || a.data.col - b.data.col)
       const seat_assignments = seats.map(
-        (seat) =>
-          studentNodes.find((student) => student.parentId === seat.id)?.id ??
-          null
+        (seat) => studentBySeatId.get(seat.id)?.id ?? null
       )
 
       return {
