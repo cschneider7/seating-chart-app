@@ -160,6 +160,21 @@ export function buildInitialNodes(
 }
 
 /**
+ * Reorders nodes into table -> seat -> student order. React Flow requires a
+ * parent node to appear before its children in the array to compute child
+ * positions correctly
+ * @param nodes - Unordered list of seating chart nodes
+ * @return List of nodes in the order table -> seat -> student
+ */
+export function reorderNodes(nodes: SeatingChartNode[]): SeatingChartNode[] {
+  return [
+    ...nodes.filter((n) => n.type === "table"),
+    ...nodes.filter((n) => n.type === "seat"),
+    ...nodes.filter((n) => n.type === "student"),
+  ]
+}
+
+/**
  * Builds the backend payload from the current seating chart canvas state,
  * deriving each table's dense seat_assignments array by walking that
  * table's seat children (by parentId, in seatIndex order) and reading each

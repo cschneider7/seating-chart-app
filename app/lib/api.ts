@@ -1,14 +1,32 @@
 import * as z from "zod"
 import {
+  ClassroomSchema,
   CreateClassroomSchema,
   CreateStudentSchema,
   SeatingChartSchema,
+  StudentSchema,
   UpdateClassroomSchema,
   UpdateStudentSchema,
   type Classroom,
   type SeatingChart,
   type Student,
 } from "~/lib/schemas"
+
+async function getErrorMessage(
+  res: Response,
+  fallback: string
+): Promise<string> {
+  const text = await res.text()
+  try {
+    const json = JSON.parse(text)
+    if (typeof json?.message === "string") {
+      return json.message
+    }
+  } catch {
+    // Not JSON - fall through to using the raw text below.
+  }
+  return text || fallback
+}
 
 export async function getStudent(studentId: string): Promise<Student> {
   const res = await fetch(`http://localhost:3000/api/v1/students/${studentId}`)
@@ -17,7 +35,7 @@ export async function getStudent(studentId: string): Promise<Student> {
   }
 
   const json = await res.json()
-  return json.data
+  return z.parse(StudentSchema, json.data)
 }
 
 export async function getStudents(): Promise<Student[]> {
@@ -27,7 +45,7 @@ export async function getStudents(): Promise<Student[]> {
   }
 
   const json = await res.json()
-  return json.data
+  return z.parse(z.array(StudentSchema), json.data)
 }
 
 export async function createStudent(
@@ -38,15 +56,15 @@ export async function createStudent(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(studentInfo),
+    body: JSON.stringify(z.parse(CreateStudentSchema, studentInfo)),
   })
 
   if (!response.ok) {
-    throw new Error("Error creating student: " + response.statusText)
+    throw new Error(await getErrorMessage(response, "Error creating student"))
   }
 
   const json = await response.json()
-  return json.data
+  return z.parse(StudentSchema, json.data)
 }
 
 export async function updateStudent(
@@ -60,12 +78,12 @@ export async function updateStudent(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(updates),
+      body: JSON.stringify(z.parse(UpdateStudentSchema, updates)),
     }
   )
 
   if (!response.ok) {
-    throw new Error("Error creating student: " + response.statusText)
+    throw new Error(await getErrorMessage(response, "Error updating student"))
   }
 }
 
@@ -78,7 +96,7 @@ export async function deleteStudent(studentId: string) {
   )
 
   if (!response.ok) {
-    throw new Error("Error deleting student: " + response.statusText)
+    throw new Error(await getErrorMessage(response, "Error deleting student"))
   }
 }
 
@@ -91,7 +109,7 @@ export async function getClassroom(classroomId: string): Promise<Classroom> {
   }
 
   const json = await res.json()
-  return json.data
+  return z.parse(ClassroomSchema, json.data)
 }
 
 export async function getClassrooms(): Promise<Classroom[]> {
@@ -101,7 +119,7 @@ export async function getClassrooms(): Promise<Classroom[]> {
   }
 
   const json = await res.json()
-  return json.data
+  return z.parse(z.array(ClassroomSchema), json.data)
 }
 
 export async function createClassroom(
@@ -112,15 +130,15 @@ export async function createClassroom(
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(classroomInfo),
+    body: JSON.stringify(z.parse(CreateClassroomSchema, classroomInfo)),
   })
 
   if (!response.ok) {
-    throw new Error("Error creating classroom: " + response.statusText)
+    throw new Error(await getErrorMessage(response, "Error creating classroom"))
   }
 
   const json = await response.json()
-  return json.data
+  return z.parse(ClassroomSchema, json.data)
 }
 
 export async function updateClassroom(
@@ -134,12 +152,12 @@ export async function updateClassroom(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(updates),
+      body: JSON.stringify(z.parse(UpdateClassroomSchema, updates)),
     }
   )
 
   if (!response.ok) {
-    throw new Error("Error updating classroom: " + response.statusText)
+    throw new Error(await getErrorMessage(response, "Error updating classroom"))
   }
 }
 
@@ -152,7 +170,7 @@ export async function deleteClassroom(classroomId: string) {
   )
 
   if (!response.ok) {
-    throw new Error("Error deleting classroom: " + response.statusText)
+    throw new Error(await getErrorMessage(response, "Error deleting classroom"))
   }
 }
 
@@ -183,11 +201,13 @@ export async function updateClassroomSeatingChart(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(seatingChart),
+      body: JSON.stringify(z.parse(SeatingChartSchema, seatingChart)),
     }
   )
 
   if (!response.ok) {
-    throw new Error("Error updating seating chart: " + response.statusText)
+    throw new Error(
+      await getErrorMessage(response, "Error updating seating chart")
+    )
   }
 }

@@ -4,7 +4,6 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
-  type CoordinateExtent,
   type OnNodeDrag,
   type OnNodesChange,
 } from "@xyflow/react"
@@ -24,6 +23,7 @@ import { ScrollArea } from "~/components/ui/scroll-area"
 import type { Student } from "~/lib/schemas"
 import {
   GRID_STEP,
+  reorderNodes,
   STUDENT_NODE_SIZE,
   type Point,
   type SeatingChartNode,
@@ -107,13 +107,8 @@ function SeatingChartCanvasInner({
 }: SeatingChartCanvasProps) {
   const { getIntersectingNodes, getInternalNode, screenToFlowPosition } =
     useReactFlow<SeatingChartNode>()
-  const boundary: CoordinateExtent = [
-    [-2000, 2000],
-    [2000, 2000],
-  ]
 
-  // Captures a dragged student's parentId/position before a drag, so a rejected drop
-  // snaps the student back.
+  // Captures a dragged student's parentId/position before a drag
   const dragStartState = useRef(new Map<string, DragSnapshot>())
 
   const clearHighlights = useCallback(
@@ -141,20 +136,20 @@ function SeatingChartCanvasInner({
         return
       }
 
-      const hitSeat = getIntersectingNodes(node).find((n) => n.type === "seat")
+      const seatNode = getIntersectingNodes(node).find((n) => n.type === "seat")
       const occupied =
-        !!hitSeat &&
+        !!seatNode &&
         nodes.some(
           (n) =>
             n.type === "student" &&
-            n.parentId === hitSeat.id &&
+            n.parentId === seatNode.id &&
             n.id !== node.id
         )
 
       setNodes((nds) =>
         nds.map((n) => {
           const className =
-            hitSeat?.id !== n.id
+            seatNode?.id !== n.id
               ? ""
               : occupied
                 ? "highlight-rejected"
@@ -175,7 +170,7 @@ function SeatingChartCanvasInner({
       const committed = dragStartState.current.get(node.id)
       dragStartState.current.delete(node.id)
 
-      const revertToCommitted = () => {
+      const cancelMovement = () => {
         setNodes((nds) =>
           clearHighlights(
             nds.map((n) =>
@@ -187,52 +182,39 @@ function SeatingChartCanvasInner({
         )
       }
 
-      const hitSeat = getIntersectingNodes(node).find((n) => n.type === "seat")
+      const seatNode = getIntersectingNodes(node).find((n) => n.type === "seat")
 
-      if (hitSeat) {
+      if (seatNode) {
         const occupant = nodes.find(
           (n) =>
             n.type === "student" &&
-            n.parentId === hitSeat.id &&
+            n.parentId === seatNode.id &&
             n.id !== node.id
         )
         if (occupant) {
-          revertToCommitted()
+          cancelMovement()
           return
         }
+
         setNodes((nds) =>
-          clearHighlights(
+          reorderNodes(
             nds.map((n) =>
               n.type === "student" && n.id === node.id
-                ? { ...n, parentId: hitSeat.id, position: { x: 0, y: 0 } }
+                ? { ...n, parentId: seatNode.id, position: { x: 0, y: 0 } }
                 : n
             )
           )
         )
-        return
-      }
-
-      const nearTable = getIntersectingNodes(node).some(
-        (n) => n.type === "table" || n.type === "seat"
-      )
-      if (nearTable) {
-        revertToCommitted()
-        return
-      }
-
-      if (node.parentId) {
+      } else if (node.parentId) {
         const absolutePosition =
           getInternalNode(node.id)?.internals.positionAbsolute ?? node.position
         setNodes((nds) =>
-          clearHighlights(
-            nds.map((n) =>
-              n.type === "student" && n.id === node.id
-                ? { ...n, parentId: undefined, position: absolutePosition }
-                : n
-            )
+          nds.map((n) =>
+            n.type === "student" && n.id === node.id
+              ? { ...n, parentId: undefined, position: absolutePosition }
+              : n
           )
         )
-        return
       }
 
       setNodes((nds) => clearHighlights(nds))

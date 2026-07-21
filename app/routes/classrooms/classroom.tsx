@@ -1,6 +1,6 @@
 import { useNodesState } from "@xyflow/react"
 import { Plus } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useFetcher } from "react-router"
 import {
   RosterPanel,
@@ -22,7 +22,7 @@ import {
   getSeatId,
   getSeatPosition,
   getUnassignedStudents,
-  SEAT_NODE_SIZE,
+  reorderNodes,
   SEATS_PER_TABLE,
   type SeatingChartSeatNode,
   type SeatingChartTableNode,
@@ -49,7 +49,11 @@ export async function loader({ params }: Route.ClientLoaderArgs) {
 export async function action({ params, request }: Route.ActionArgs) {
   const chart: SeatingChart = await request.json()
 
-  await updateClassroomSeatingChart(params.classroomId, chart)
+  try {
+    await updateClassroomSeatingChart(params.classroomId, chart)
+  } catch (error) {
+    return { ok: false, error: (error as Error).message }
+  }
 
   return { ok: true }
 }
@@ -71,7 +75,14 @@ export default function Component({ loaderData }: Route.ComponentProps) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
 
-  const fetcher = useFetcher()
+  const fetcher = useFetcher<typeof action>()
+  const saveError = fetcher.data && !fetcher.data.ok ? fetcher.data.error : null
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && saveError) {
+      setLocked(false)
+    }
+  }, [fetcher.state, saveError])
 
   const unassigned = useMemo(
     () => getUnassignedStudents(students, nodes),
@@ -108,8 +119,6 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         id: getSeatId(table.id, seatIndex),
         type: "seat",
         position: getSeatPosition(seatIndex),
-        width: SEAT_NODE_SIZE,
-        height: SEAT_NODE_SIZE,
         parentId: table.id,
         draggable: false,
         selectable: false,
@@ -118,17 +127,8 @@ export default function Component({ loaderData }: Route.ComponentProps) {
       })
     )
 
-    // Regrouping (rather than appending) keeps every seat/table parent
-    // ahead of its children in the array, even if an existing free student
-    // is later dragged onto one of these newly-added seats.
-    setNodes((nds) => {
-      const next = [...nds, tableNode, ...seatNodes]
-      return [
-        ...next.filter((n) => n.type === "table"),
-        ...next.filter((n) => n.type === "seat"),
-        ...next.filter((n) => n.type === "student"),
-      ]
-    })
+    // Order nodes so that parent nodes always come before child nodes
+    setNodes((nds) => reorderNodes([...nds, tableNode, ...seatNodes]))
   }
 
   function handleUnassignAll() {
@@ -141,7 +141,10 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         <h2>Period {classroom.period}</h2>
         <h3>{classroom.subject}</h3>
       </div>
-      <div className="flex shrink-0 justify-end gap-2 pb-2">
+      <div className="flex shrink-0 items-center justify-end gap-2 pb-2">
+        {saveError && (
+          <p className="mr-auto text-sm text-destructive">{saveError}</p>
+        )}
         {locked ? (
           <Button variant="secondary" onClick={() => setLocked(false)}>
             Edit

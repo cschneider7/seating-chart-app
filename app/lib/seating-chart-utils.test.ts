@@ -7,6 +7,7 @@ import {
   getSeatId,
   getSeatPosition,
   getUnassignedStudents,
+  reorderNodes,
   SEATS_PER_TABLE,
   TABLE_OFFSET,
   TABLE_SPACING,
@@ -226,6 +227,58 @@ describe("buildSeatingChartPayload", () => {
     expect(payload.tables[0].x_pos).toBe(40)
     expect(payload.tables[0].y_pos).toBe(60)
     expect(payload.tables[0].seat_assignments).toEqual([null, null, "s1", null])
+  })
+})
+
+describe("reorderNodes", () => {
+  it("reorders a mix of nodes into table, then seat, then student", () => {
+    const table: SeatingChartNode = {
+      id: "t",
+      type: "table",
+      position: { x: 0, y: 0 },
+      data: { table_number: 0 },
+    }
+    const seat: SeatingChartNode = {
+      id: "s",
+      type: "seat",
+      position: { x: 0, y: 0 },
+      parentId: "t",
+      draggable: false,
+      selectable: false,
+      deletable: false,
+      data: { seatIndex: 0 },
+    }
+    const student: SeatingChartNode = {
+      id: "st",
+      type: "student",
+      position: { x: 0, y: 0 },
+      parentId: "s",
+      data: { student: makeStudent("st") },
+    }
+
+    // Deliberately out of parent-before-child order.
+    const result = reorderNodes([student, seat, table])
+
+    expect(result).toEqual([table, seat, student])
+  })
+
+  it("preserves relative order within each group", () => {
+    const tableA: SeatingChartNode = {
+      id: "ta",
+      type: "table",
+      position: { x: 0, y: 0 },
+      data: { table_number: 0 },
+    }
+    const tableB: SeatingChartNode = {
+      id: "tb",
+      type: "table",
+      position: { x: 0, y: 0 },
+      data: { table_number: 1 },
+    }
+
+    const result = reorderNodes([tableB, tableA])
+
+    expect(result).toEqual([tableB, tableA])
   })
 })
 
