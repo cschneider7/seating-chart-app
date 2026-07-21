@@ -2,9 +2,13 @@ use std::sync::Arc;
 
 use axum::{
     Router,
+    extract::{MatchedPath, Request},
+    middleware::from_fn,
     routing::{delete, get, patch, post, put},
 };
+use tower_http::trace::TraceLayer;
 
+use crate::error::log_app_errors;
 use crate::{AppState, handlers};
 
 pub fn create_router(app_state: Arc<AppState>) -> Router {
@@ -57,5 +61,18 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             "/api/v1/classrooms/{classroom_id}/seating-chart",
             put(handlers::classroom::update_seating_chart_handler),
         )
+        .layer(from_fn(log_app_errors))
+        .layer(TraceLayer::new_for_http().make_span_with(|req: &Request| {
+            let method = req.method();
+            let uri = req.uri();
+
+            // axum automatically adds this extension.
+            let matched_path = req
+                .extensions()
+                .get::<MatchedPath>()
+                .map(|matched_path| matched_path.as_str());
+
+            tracing::debug_span!("request", %method, %uri, matched_path)
+        }))
         .with_state(app_state)
 }

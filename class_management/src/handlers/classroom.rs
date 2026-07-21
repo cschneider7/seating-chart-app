@@ -11,70 +11,43 @@ use uuid::Uuid;
 
 use crate::{
     AppState,
+    error::AppError,
     model::ClassroomModel,
     schema::{ClassroomSchema, SeatingChartSchema, TableSchema, UpdateClassroomSchema},
 };
 
 pub async fn classroom_list_handler(
     State(data): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     let classrooms = sqlx::query_as!(
         ClassroomModel,
         r#"SELECT * FROM classrooms ORDER by period"#
     )
     .fetch_all(&data.db)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("Database error: {}", e),
-            })),
-        )
-    })?;
+    .await?;
 
-    let response = json!({
-        "data": json!(classrooms)
-    });
-    Ok((StatusCode::OK, Json(response)))
+    Ok((StatusCode::OK, Json(json!({"data": classrooms}))))
 }
 
 pub async fn get_classroom_handler(
     Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     let classroom = sqlx::query_as!(
         ClassroomModel,
         r#"SELECT * FROM classrooms WHERE id = $1"#,
         &id
     )
     .fetch_one(&data.db)
-    .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => (
-            StatusCode::NOT_FOUND,
-            Json(json!({
-                "message": format!("Classroom with ID: {} not found", id)
-            })),
-        ),
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("{:?}", e)
-            })),
-        ),
-    })?;
+    .await?;
 
-    let response = json!({
-        "data": json!(classroom),
-    });
-    Ok((StatusCode::OK, Json(response)))
+    Ok((StatusCode::OK, Json(json!({"data": classroom}))))
 }
 
 pub async fn create_classroom_handler(
     State(data): State<Arc<AppState>>,
     Json(body): Json<ClassroomSchema>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     let classroom = sqlx::query_as!(
         ClassroomModel,
         r#"INSERT INTO classrooms (
@@ -87,48 +60,23 @@ pub async fn create_classroom_handler(
         body.period,
     )
     .fetch_one(&data.db)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("{:?}", e)
-            })),
-        )
-    })?;
+    .await?;
 
-    let response = json!({
-        "data": json!(classroom),
-    });
-    Ok((StatusCode::CREATED, Json(response)))
+    Ok((StatusCode::CREATED, Json(json!({"data": classroom}))))
 }
 
 pub async fn update_classroom_handler(
     Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
     Json(body): Json<UpdateClassroomSchema>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     let classroom = sqlx::query_as!(
         ClassroomModel,
         r#"SELECT * FROM classrooms WHERE id = $1"#,
         &id
     )
     .fetch_one(&data.db)
-    .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => (
-            StatusCode::NOT_FOUND,
-            Json(json!({
-                "message": format!("Classroom with ID: {} not found", id)
-            })),
-        ),
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("{:?}", e)
-            })),
-        ),
-    })?;
+    .await?;
 
     let new_subject = body.subject.as_ref().unwrap_or(&classroom.subject);
     let new_period = body.period.unwrap_or(classroom.period);
@@ -145,58 +93,30 @@ pub async fn update_classroom_handler(
         &classroom.id
     )
     .fetch_one(&data.db)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("{:?}", e)
-            })),
-        )
-    })?;
+    .await?;
 
-    let response = json!({
-        "data": json!(updated_classroom)
-    });
-    Ok((StatusCode::OK, Json(response)))
+    Ok((StatusCode::OK, Json(json!({"data": updated_classroom}))))
 }
 
 pub async fn delete_classroom_handler(
     Path(id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     let classroom = sqlx::query_as!(
         ClassroomModel,
         r#"DELETE FROM classrooms WHERE id = $1 RETURNING *"#,
         &id
     )
     .fetch_one(&data.db)
-    .await
-    .map_err(|e| match e {
-        sqlx::Error::RowNotFound => (
-            StatusCode::NOT_FOUND,
-            Json(json!({
-                "message": format!("Classroom with ID: {} not found", id)
-            })),
-        ),
-        _ => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("{:?}", e)
-            })),
-        ),
-    })?;
+    .await?;
 
-    let response = json!({
-        "data": json!(classroom),
-    });
-    Ok((StatusCode::OK, Json(response)))
+    Ok((StatusCode::OK, Json(json!({"data": classroom}))))
 }
 
 pub async fn get_seating_chart_handler(
     Path(classroom_id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<impl IntoResponse, AppError> {
     let tables = sqlx::query_as!(
         TableSchema,
         r#"SELECT
@@ -212,15 +132,7 @@ pub async fn get_seating_chart_handler(
         &classroom_id
     )
     .fetch_all(&data.db)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("Database error: {}", e),
-            })),
-        )
-    })?;
+    .await?;
 
     let response = json!({
         "data": {
@@ -235,30 +147,15 @@ pub async fn update_seating_chart_handler(
     Path(classroom_id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
     Json(body): Json<SeatingChartSchema>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let mut tx = data.db.begin().await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("{:?}", e)
-            })),
-        )
-    })?;
+) -> Result<impl IntoResponse, AppError> {
+    let mut tx = data.db.begin().await?;
 
     sqlx::query!(
         r#"DELETE FROM tables WHERE classroom_id = $1"#,
         &classroom_id
     )
     .execute(&mut *tx)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("{:?}", e)
-            })),
-        )
-    })?;
+    .await?;
 
     let mut chart_tables: Vec<TableSchema> = Vec::new();
     for (index, table) in body.tables.iter().enumerate() {
@@ -276,15 +173,7 @@ pub async fn update_seating_chart_handler(
             table.y_pos,
         )
         .fetch_one(&mut *tx)
-        .await
-        .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "message": format!("{:?}", e)
-                })),
-            )
-        })?;
+        .await?;
 
         for (index, student_id) in table.seat_assignments.iter().enumerate() {
             let seat_number = index as i16;
@@ -297,15 +186,7 @@ pub async fn update_seating_chart_handler(
                 seat_number,
             )
             .execute(&mut *tx)
-            .await
-            .map_err(|e| {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({
-                        "message": format!("{:?}", e)
-                    })),
-                )
-            })?;
+            .await?;
         }
 
         let chart_table = TableSchema {
@@ -317,14 +198,7 @@ pub async fn update_seating_chart_handler(
         chart_tables.push(chart_table);
     }
 
-    tx.commit().await.map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({
-                "message": format!("{:?}", e)
-            })),
-        )
-    })?;
+    tx.commit().await?;
 
     let response = json!({
         "data": {
