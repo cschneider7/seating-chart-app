@@ -46,6 +46,8 @@ pub struct SeatingChartSchema {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TableSchema {
     pub table_number: i32,
+    pub rows: i16,
+    pub cols: i16,
     pub x_pos: i32,
     pub y_pos: i32,
     pub seat_assignments: Vec<Option<Uuid>>,

@@ -1,4 +1,5 @@
 import * as z from "zod"
+import { MAX_TABLE_DIMENSION } from "~/lib/seating-chart-utils"
 
 export const CreateStudentSchema = z.object({
   classroom_id: z.uuidv4().nullable(),
@@ -62,6 +63,8 @@ export const SeatingChartSchema = z.object({
   tables: z.array(
     z.object({
       table_number: z.int(),
+      rows: z.int().positive().max(MAX_TABLE_DIMENSION),
+      cols: z.int().positive().max(MAX_TABLE_DIMENSION),
       x_pos: z.int(),
       y_pos: z.int(),
       seat_assignments: z.array(z.string().min(1).nullable()),

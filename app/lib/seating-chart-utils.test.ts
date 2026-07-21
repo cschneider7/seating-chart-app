@@ -4,11 +4,12 @@ import {
   buildInitialNodes,
   buildSeatingChartPayload,
   createCanvasTable,
+  DEFAULT_TABLE_COLS,
+  DEFAULT_TABLE_ROWS,
   getSeatId,
   getSeatPosition,
   getUnassignedStudents,
   reorderNodes,
-  SEATS_PER_TABLE,
   TABLE_OFFSET,
   TABLE_SPACING,
   type SeatingChartNode,
@@ -24,6 +25,8 @@ function makeSeatingChart(
   return {
     tables: tables.map((table, index) => ({
       table_number: index,
+      rows: DEFAULT_TABLE_ROWS,
+      cols: DEFAULT_TABLE_COLS,
       x_pos: 0,
       y_pos: 0,
       seat_assignments: [null, null, null, null],
@@ -33,8 +36,12 @@ function makeSeatingChart(
 }
 
 describe("createCanvasTable", () => {
-  it("defaults to 4 seats", () => {
-    expect(createCanvasTable(0, "c1").seats).toHaveLength(SEATS_PER_TABLE)
+  it("defaults to a 2x2 grid of seats", () => {
+    const table = createCanvasTable(0, "c1")
+
+    expect(table.rows).toBe(DEFAULT_TABLE_ROWS)
+    expect(table.cols).toBe(DEFAULT_TABLE_COLS)
+    expect(table.seats).toHaveLength(DEFAULT_TABLE_ROWS * DEFAULT_TABLE_COLS)
   })
 
   it("lays out tables left-to-right within a row", () => {
@@ -62,8 +69,8 @@ describe("createCanvasTable", () => {
 })
 
 describe("getSeatId", () => {
-  it("combines the table id and seat index", () => {
-    expect(getSeatId("a", 2)).toBe("a:2")
+  it("combines the table id and the seat's row/col", () => {
+    expect(getSeatId("a", 1, 2)).toBe("a:1:2")
   })
 })
 
@@ -72,29 +79,37 @@ describe("buildInitialNodes", () => {
     expect(buildInitialNodes("c1", makeSeatingChart([]), new Map())).toEqual([])
   })
 
-  it("creates a table node followed by its 4 seat nodes, in canonical order", () => {
+  it("creates a table node followed by its seat nodes, in row-major canonical order", () => {
     const seatingChart = makeSeatingChart([{ x_pos: 40, y_pos: 60 }])
     const nodes = buildInitialNodes("c1", seatingChart, new Map())
 
-    expect(nodes).toHaveLength(1 + SEATS_PER_TABLE)
+    expect(nodes).toHaveLength(1 + DEFAULT_TABLE_ROWS * DEFAULT_TABLE_COLS)
     expect(nodes[0]).toEqual({
       id: "c1:0",
       type: "table",
       position: { x: 40, y: 60 },
-      data: { table_number: 0 },
+      data: {
+        table_number: 0,
+        rows: DEFAULT_TABLE_ROWS,
+        cols: DEFAULT_TABLE_COLS,
+      },
     })
 
-    for (let seatIndex = 0; seatIndex < SEATS_PER_TABLE; seatIndex++) {
-      expect(nodes[seatIndex + 1]).toEqual({
-        id: getSeatId("c1:0", seatIndex),
-        type: "seat",
-        position: getSeatPosition(seatIndex),
-        parentId: "c1:0",
-        draggable: false,
-        selectable: false,
-        deletable: false,
-        data: { seatIndex },
-      })
+    let i = 1
+    for (let row = 0; row < DEFAULT_TABLE_ROWS; row++) {
+      for (let col = 0; col < DEFAULT_TABLE_COLS; col++) {
+        expect(nodes[i]).toEqual({
+          id: getSeatId("c1:0", row, col),
+          type: "seat",
+          position: getSeatPosition(row, col),
+          parentId: "c1:0",
+          draggable: false,
+          selectable: false,
+          deletable: false,
+          data: { row, col },
+        })
+        i++
+      }
     }
   })
 
@@ -109,7 +124,8 @@ describe("buildInitialNodes", () => {
       new Map([["s1", student]])
     )
 
-    const seatId = getSeatId("c1:0", 1)
+    // 2x2, row-major: index 1 is row 0, col 1.
+    const seatId = getSeatId("c1:0", 0, 1)
     const studentNode = nodes.find((n) => n.id === "s1")
 
     expect(studentNode).toEqual({
@@ -132,7 +148,7 @@ describe("buildInitialNodes", () => {
     const nodes = buildInitialNodes("c1", seatingChart, new Map())
 
     expect(nodes.some((n) => n.type === "student")).toBe(false)
-    expect(nodes.some((n) => n.id === getSeatId("c1:0", 0))).toBe(true)
+    expect(nodes.some((n) => n.id === getSeatId("c1:0", 0, 0))).toBe(true)
     expect(warn).toHaveBeenCalled()
 
     warn.mockRestore()
@@ -144,11 +160,29 @@ describe("buildInitialNodes", () => {
 
     const tableAIndex = nodes.findIndex((n) => n.id === "c1:0")
     const tableBIndex = nodes.findIndex((n) => n.id === "c1:1")
-    const seatOfAIndex = nodes.findIndex((n) => n.id === getSeatId("c1:0", 0))
-    const seatOfBIndex = nodes.findIndex((n) => n.id === getSeatId("c1:1", 0))
+    const seatOfAIndex = nodes.findIndex(
+      (n) => n.id === getSeatId("c1:0", 0, 0)
+    )
+    const seatOfBIndex = nodes.findIndex(
+      (n) => n.id === getSeatId("c1:1", 0, 0)
+    )
 
     expect(tableAIndex).toBeLessThan(seatOfAIndex)
     expect(tableBIndex).toBeLessThan(seatOfBIndex)
+  })
+
+  it("supports a non-square grid, reading seat_assignments in row-major order", () => {
+    const seatingChart = makeSeatingChart([
+      {
+        rows: 2,
+        cols: 3,
+        seat_assignments: [null, null, null, null, null, null],
+      },
+    ])
+    const nodes = buildInitialNodes("c1", seatingChart, new Map())
+
+    expect(nodes).toHaveLength(1 + 6)
+    expect(nodes.some((n) => n.id === getSeatId("c1:0", 1, 2))).toBe(true)
   })
 })
 
@@ -165,6 +199,8 @@ describe("buildSeatingChartPayload", () => {
       tables: [
         {
           table_number: 0,
+          rows: DEFAULT_TABLE_ROWS,
+          cols: DEFAULT_TABLE_COLS,
           x_pos: 0,
           y_pos: 0,
           seat_assignments: [null, null, null, null],
@@ -179,26 +215,28 @@ describe("buildSeatingChartPayload", () => {
       id: "a",
       type: "table",
       position: { x: 0, y: 0 },
-      data: { table_number: 0 },
+      data: { table_number: 0, rows: 2, cols: 2 },
     }
-    const seatNodes: SeatingChartNode[] = Array.from(
-      { length: SEATS_PER_TABLE },
-      (_, seatIndex) => ({
-        id: getSeatId("a", seatIndex),
-        type: "seat",
-        position: { x: 0, y: 0 },
-        parentId: "a",
-        draggable: false,
-        selectable: false,
-        deletable: false,
-        data: { seatIndex },
-      })
-    )
+    const seatNodes: SeatingChartNode[] = []
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        seatNodes.push({
+          id: getSeatId("a", row, col),
+          type: "seat",
+          position: { x: 0, y: 0 },
+          parentId: "a",
+          draggable: false,
+          selectable: false,
+          deletable: false,
+          data: { row, col },
+        })
+      }
+    }
     const studentNode: SeatingChartNode = {
       id: "s1",
       type: "student",
       position: { x: 0, y: 0 },
-      parentId: getSeatId("a", 2),
+      parentId: getSeatId("a", 1, 0),
       data: { student },
     }
 
@@ -228,6 +266,34 @@ describe("buildSeatingChartPayload", () => {
     expect(payload.tables[0].y_pos).toBe(60)
     expect(payload.tables[0].seat_assignments).toEqual([null, null, "s1", null])
   })
+
+  it("round-trips a non-square grid, preserving rows/cols and seat order", () => {
+    const student = makeStudent("s1")
+    const seatingChart = makeSeatingChart([
+      {
+        rows: 2,
+        cols: 3,
+        seat_assignments: [null, null, null, null, "s1", null],
+      },
+    ])
+    const nodes = buildInitialNodes(
+      "c1",
+      seatingChart,
+      new Map([["s1", student]])
+    )
+    const payload = buildSeatingChartPayload(nodes)
+
+    expect(payload.tables[0].rows).toBe(2)
+    expect(payload.tables[0].cols).toBe(3)
+    expect(payload.tables[0].seat_assignments).toEqual([
+      null,
+      null,
+      null,
+      null,
+      "s1",
+      null,
+    ])
+  })
 })
 
 describe("reorderNodes", () => {
@@ -236,7 +302,7 @@ describe("reorderNodes", () => {
       id: "t",
       type: "table",
       position: { x: 0, y: 0 },
-      data: { table_number: 0 },
+      data: { table_number: 0, rows: 2, cols: 2 },
     }
     const seat: SeatingChartNode = {
       id: "s",
@@ -246,7 +312,7 @@ describe("reorderNodes", () => {
       draggable: false,
       selectable: false,
       deletable: false,
-      data: { seatIndex: 0 },
+      data: { row: 0, col: 0 },
     }
     const student: SeatingChartNode = {
       id: "st",
@@ -267,13 +333,13 @@ describe("reorderNodes", () => {
       id: "ta",
       type: "table",
       position: { x: 0, y: 0 },
-      data: { table_number: 0 },
+      data: { table_number: 0, rows: 2, cols: 2 },
     }
     const tableB: SeatingChartNode = {
       id: "tb",
       type: "table",
       position: { x: 0, y: 0 },
-      data: { table_number: 1 },
+      data: { table_number: 1, rows: 2, cols: 2 },
     }
 
     const result = reorderNodes([tableB, tableA])

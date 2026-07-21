@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS tables (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     classroom_id UUID NOT NULL REFERENCES classrooms ON DELETE CASCADE,
     table_number INTEGER NOT NULL,
-    seat_count SMALLINT NOT NULL,
+    rows SMALLINT NOT NULL CHECK (rows BETWEEN 1 AND 15),
+    cols SMALLINT NOT NULL CHECK (cols BETWEEN 1 AND 15),
     x_pos INTEGER NOT NULL,
     y_pos INTEGER NOT NULL,
     UNIQUE (classroom_id, table_number)

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO tables (classroom_id, table_number, seat_count, x_pos, y_pos)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING *",
+  "query": "INSERT INTO tables (classroom_id, table_number, rows, cols, x_pos, y_pos)\n            VALUES ($1, $2, $3, $4, $5, $6)\n            RETURNING *",
   "describe": {
     "columns": [
       {
@@ -38,17 +38,28 @@
       },
       {
         "ordinal": 3,
-        "name": "seat_count",
+        "name": "rows",
         "type_info": "Int2",
         "origin": {
           "Table": {
             "table": "tables",
-            "name": "seat_count"
+            "name": "rows"
           }
         }
       },
       {
         "ordinal": 4,
+        "name": "cols",
+        "type_info": "Int2",
+        "origin": {
+          "Table": {
+            "table": "tables",
+            "name": "cols"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "x_pos",
         "type_info": "Int4",
         "origin": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "y_pos",
         "type_info": "Int4",
         "origin": {
@@ -75,6 +86,7 @@
         "Uuid",
         "Int4",
         "Int2",
+        "Int2",
         "Int4",
         "Int4"
       ]
@@ -85,8 +97,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "a4b3940df4f83552d1a48cab6b33733c96d7e44891831872661218bb8841fd57"
+  "hash": "d7d22b2cdd47d9b645396e2d338e3c9e7d3fc87664177aa361a694aeea493c64"
 }
