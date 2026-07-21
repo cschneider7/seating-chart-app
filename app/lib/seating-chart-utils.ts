@@ -51,21 +51,34 @@ export type SeatingChartStudentNode = {
 export type SeatingChartNode =
   SeatingChartTableNode | SeatingChartSeatNode | SeatingChartStudentNode
 
+/**
+ * Builds a seat node's id from its table id and grid coordinate.
+ * @param tableId - Id of the owning table node
+ * @param row - Seat's row index within the table
+ * @param col - Seat's column index within the table
+ * @returns The seat node's id
+ */
 export function getSeatId(tableId: string, row: number, col: number): string {
   return `${tableId}:${row}:${col}`
 }
 
 /**
- * Computes a seat's position relative to its parent table from its (row,
- * col) grid coordinate. Cell size is fixed, so a table's pixel size grows
- * with its rows/cols rather than seats shrinking to fit.
+ * Computes a seat's pixel position within its table from its grid coordinate.
+ * @param row - Seat's row index within the table
+ * @param col - Seat's column index within the table
+ * @returns The seat's `{ x, y }` position relative to its table
  */
 export function getSeatPosition(row: number, col: number): Point {
   const step = SEAT_NODE_SIZE + SEAT_PADDING
   return { x: SEAT_PADDING + col * step, y: SEAT_PADDING + row * step }
 }
 
-/** Computes a table's rendered pixel size from its rows/cols. */
+/**
+ * Computes a table's rendered pixel size from its rows/cols.
+ * @param rows - Number of seat rows
+ * @param cols - Number of seat columns
+ * @returns The table node's `{ width, height }` in pixels
+ */
 export function getTableNodeSize(
   rows: number,
   cols: number
@@ -75,6 +88,12 @@ export function getTableNodeSize(
   return { width: dimSize(cols), height: dimSize(rows) }
 }
 
+/**
+ * Creates a new table's initial canvas position and default seat grid.
+ * @param index - Table's position among the classroom's other tables
+ * @param classroomId - Id of the classroom the table belongs to
+ * @returns A new table, ready to be added to the canvas
+ */
 export function createCanvasTable(index: number, classroomId: string): Table {
   return {
     id: crypto.randomUUID(), // Placeholder value
@@ -161,9 +180,7 @@ export function buildInitialNodes(
 }
 
 /**
- * Reorders nodes into table -> seat -> student order. React Flow requires a
- * parent node to appear before its children in the array to compute child
- * positions correctly
+ * Reorders nodes into table -> seat -> student order (parents before children).
  * @param nodes - Unordered list of seating chart nodes
  * @return List of nodes in the order table -> seat -> student
  */
@@ -176,10 +193,7 @@ export function reorderNodes(nodes: SeatingChartNode[]): SeatingChartNode[] {
 }
 
 /**
- * Builds the backend payload from the current seating chart canvas state,
- * deriving each table's dense seat_assignments array by walking that
- * table's seat children (by parentId, in row-major order) and reading each
- * seat's student child (if any) - no dependence on node array order.
+ * Converts canvas nodes back into a seating chart API payload.
  * @param nodes - List of table, seat, and student nodes
  * @returns Body payload to be used to call seating chart API
  */

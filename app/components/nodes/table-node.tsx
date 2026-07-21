@@ -18,6 +18,14 @@ import {
   type TableNodeData,
 } from "~/lib/seating-chart-utils"
 
+/**
+ * Returns a copy of the node list with one table's row/column counts updated.
+ * @param nodes - List of table, seat, and student nodes
+ * @param tableId - Id of the table node to update
+ * @param rows - New number of seat rows for the table
+ * @param cols - New number of seat columns for the table
+ * @returns The node list with the matching table node's dimensions replaced
+ */
 function withTableDims(
   nodes: SeatingChartNode[],
   tableId: string,
