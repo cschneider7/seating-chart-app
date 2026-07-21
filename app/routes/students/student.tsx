@@ -23,7 +23,8 @@ import {
 } from "~/components/ui/card"
 
 import { Trash2Icon } from "lucide-react"
-import { Form, Link } from "react-router"
+import { Form, Link, useNavigation } from "react-router"
+import { Spinner } from "~/components/ui/spinner"
 import { getClassroom, getStudent } from "~/lib/api"
 import type { Route } from "./+types/student"
 
@@ -41,6 +42,9 @@ export async function loader({ params }: Route.ClientLoaderArgs) {
 
 export default function Component({ loaderData }: Route.ComponentProps) {
   const { student, classroom } = loaderData
+  const navigation = useNavigation()
+  const isDeleting =
+    navigation.formAction === `/students/${student.id}/delete`
   return (
     <div className="justify-center">
       <Card className="relative mx-auto w-full max-w-sm pt-0">
@@ -86,10 +90,13 @@ export default function Component({ loaderData }: Route.ComponentProps) {
               </AlertDialogHeader>
               <Form action={`/students/${student.id}/delete`} method="post">
                 <AlertDialogFooter>
-                  <AlertDialogCancel variant="outline">
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction variant="destructive" type="submit">
+                  <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    type="submit"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting && <Spinner />}
                     Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>

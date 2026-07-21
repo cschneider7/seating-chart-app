@@ -29,16 +29,11 @@ describe("delete-classroom action", () => {
     expect(response.headers.get("Location")).toBe("/classrooms")
   })
 
-  // The action's try/catch swallows the error deleteClassroom() throws on a
-  // non-ok response (see app/lib/api.ts), so it redirects either way.
-  it("redirects even when the delete request fails", async () => {
+  it("propagates an error when the delete request fails", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(null, { status: 500, statusText: "Internal Server Error" })
     )
 
-    const result = await action(args())
-
-    expect(result).toBeInstanceOf(Response)
-    expect((result as Response).status).toBe(302)
+    await expect(action(args())).rejects.toThrow()
   })
 })

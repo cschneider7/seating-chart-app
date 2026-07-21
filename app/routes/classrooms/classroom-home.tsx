@@ -1,5 +1,5 @@
-import { ArrowUpRightIcon, ClipboardList, Plus, Trash2Icon } from "lucide-react"
-import { Form, Link } from "react-router"
+import { ClipboardList, Plus, Trash2Icon } from "lucide-react"
+import { Form, Link, useNavigation } from "react-router"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,8 +15,6 @@ import {
 import { Button } from "~/components/ui/button"
 import {
   Card,
-  CardAction,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -30,6 +28,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty"
+import { Spinner } from "~/components/ui/spinner"
 import { getClassrooms } from "~/lib/api"
 import type { Classroom } from "~/lib/schemas"
 import type { Route } from "./+types/classroom-home"
@@ -69,6 +68,9 @@ function EmptyClassrooms() {
 }
 
 function ClassroomSummary({ classroom }: { classroom: Classroom }) {
+  const navigation = useNavigation()
+  const isDeleting =
+    navigation.formAction === `/classrooms/${classroom.id}/delete`
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
@@ -110,7 +112,12 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
             <Form action={`/classrooms/${classroom.id}/delete`} method="post">
               <AlertDialogFooter>
                 <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" type="submit">
+                <AlertDialogAction
+                  variant="destructive"
+                  type="submit"
+                  disabled={isDeleting}
+                >
+                  {isDeleting && <Spinner />}
                   Delete
                 </AlertDialogAction>
               </AlertDialogFooter>

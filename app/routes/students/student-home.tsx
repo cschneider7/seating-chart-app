@@ -9,12 +9,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty"
-import { getStudents } from "~/lib/api"
-
-export async function loader() {
-  const students = await getStudents()
-  return { students: students }
-}
 
 export default function Component() {
   return (

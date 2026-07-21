@@ -1,6 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
-import { Link, isRouteErrorResponse, redirect, useSubmit } from "react-router"
+import {
+  Link,
+  isRouteErrorResponse,
+  redirect,
+  useActionData,
+  useNavigation,
+  useSubmit,
+} from "react-router"
 import * as z from "zod"
 import { Button } from "~/components/ui/button"
 import {
@@ -27,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select"
+import { Spinner } from "~/components/ui/spinner"
 import { createStudent, getClassrooms } from "~/lib/api"
 import { CreateStudentSchema } from "~/lib/schemas"
 import type { Route } from "./+types/create-student"
@@ -51,6 +59,9 @@ export async function loader() {
 export default function Component({ loaderData }: Route.ComponentProps) {
   const { classrooms } = loaderData
   const submit = useSubmit()
+  const actionData = useActionData<typeof action>()
+  const navigation = useNavigation()
+  const isSubmitting = navigation.state !== "idle"
 
   const form = useForm<z.infer<typeof CreateStudentSchema>>({
     resolver: zodResolver(CreateStudentSchema),
@@ -81,6 +92,12 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           <CardDescription>Enter new student info here.</CardDescription>
         </CardHeader>
         <CardContent>
+          {actionData && (
+            <p className="mb-4 text-sm text-destructive">
+              There was a problem with your submission. Please check the form
+              and try again.
+            </p>
+          )}
           <form id="create-student" onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup>
               <Controller
@@ -171,10 +188,12 @@ export default function Component({ loaderData }: Route.ComponentProps) {
               type="button"
               variant="outline"
               onClick={() => form.reset()}
+              disabled={isSubmitting}
             >
               Reset
             </Button>
-            <Button type="submit" form="create-student">
+            <Button type="submit" form="create-student" disabled={isSubmitting}>
+              {isSubmitting && <Spinner />}
               Submit
             </Button>
           </Field>

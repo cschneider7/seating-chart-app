@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
-import { redirect, useSubmit } from "react-router"
+import { redirect, useActionData, useNavigation, useSubmit } from "react-router"
 import * as z from "zod"
 import { Button } from "~/components/ui/button"
 import {
@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select"
+import { Spinner } from "~/components/ui/spinner"
 import { getClassroom, updateClassroom } from "~/lib/api"
 import { UpdateClassroomSchema } from "~/lib/schemas"
 import type { Route } from "./+types/edit-classroom"
@@ -56,6 +57,9 @@ export async function action({ params, request }: Route.ActionArgs) {
 export default function Component({ loaderData }: Route.ComponentProps) {
   const { classroom } = loaderData
   const submit = useSubmit()
+  const actionData = useActionData<typeof action>()
+  const navigation = useNavigation()
+  const isSubmitting = navigation.state !== "idle"
 
   const form = useForm<z.infer<typeof UpdateClassroomSchema>>({
     resolver: zodResolver(UpdateClassroomSchema),
@@ -85,6 +89,12 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           <CardDescription>Enter classroom info here.</CardDescription>
         </CardHeader>
         <CardContent>
+          {actionData && (
+            <p className="mb-4 text-sm text-destructive">
+              There was a problem with your submission. Please check the form
+              and try again.
+            </p>
+          )}
           <form id="edit-classroom" onSubmit={form.handleSubmit(onSubmit)}>
             <FieldGroup>
               <Controller
@@ -152,10 +162,12 @@ export default function Component({ loaderData }: Route.ComponentProps) {
               type="button"
               variant="outline"
               onClick={() => form.reset()}
+              disabled={isSubmitting}
             >
               Reset
             </Button>
-            <Button type="submit" form="edit-classroom">
+            <Button type="submit" form="edit-classroom" disabled={isSubmitting}>
+              {isSubmitting && <Spinner />}
               Submit
             </Button>
           </Field>
