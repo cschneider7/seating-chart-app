@@ -2,6 +2,7 @@ import { SidebarProvider } from "~/components/ui/sidebar"
 import type { Route } from "./+types/students"
 
 import { Outlet } from "react-router"
+import { RouteErrorCard } from "~/components/route-error-card"
 import { StudentSidebar } from "~/components/students-sidebar"
 import { getStudents } from "~/lib/api"
 
@@ -26,5 +27,17 @@ export default function Layout({ loaderData }: Route.ComponentProps) {
         <Outlet />
       </main>
     </SidebarProvider>
+  )
+}
+
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  return (
+    <RouteErrorCard
+      error={error}
+      title="Something went wrong"
+      fallbackDetails="We couldn't load this page. Try again or head back to the student list."
+      backTo="/students"
+      backLabel="Back to students"
+    />
   )
 }

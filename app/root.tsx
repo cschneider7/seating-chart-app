@@ -1,4 +1,5 @@
 import {
+  Link,
   Links,
   Meta,
   Outlet,
@@ -9,7 +10,16 @@ import {
 import { Spinner } from "~/components/ui/spinner"
 
 import { Navbar } from "~/components/navbar"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "~/components/ui/card"
 import { ThemeProvider } from "~/components/ui/theme-provider"
+import { Button } from "~/components/ui/button"
 import type { Route } from "./+types/root"
 import "./app.css"
 
@@ -87,14 +97,23 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   }
 
   return (
-    <main className="container mx-auto p-4 pt-16">
-      <h1>{message}</h1>
-      <p>{details}</p>
-      {stack && (
-        <pre className="w-full overflow-x-auto p-4">
-          <code>{stack}</code>
-        </pre>
-      )}
+    <main className="mx-auto w-full max-w-md p-4 pt-16">
+      <Card className="relative mx-auto w-full sm:max-w-md">
+        <CardHeader>
+          <CardTitle>{message}</CardTitle>
+          <CardDescription>{details}</CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Button variant="outline" render={<Link to="/">Back to home</Link>} />
+        </CardFooter>
+        {stack && (
+          <CardContent>
+            <pre className="w-full overflow-x-auto p-4 text-xs">
+              <code>{stack}</code>
+            </pre>
+          </CardContent>
+        )}
+      </Card>
     </main>
   )
 }
