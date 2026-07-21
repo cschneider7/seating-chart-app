@@ -14,7 +14,7 @@ const args = (body: unknown) =>
 stubFetch()
 
 describe("create-student action", () => {
-  it("creates the student and redirects to its detail page", async () => {
+  it("creates the student and returns its id", async () => {
     const createdStudent = { id: "student-1", ...validPayload }
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ data: createdStudent }), { status: 201 })
@@ -28,12 +28,7 @@ describe("create-student action", () => {
     expect(init?.method).toBe("POST")
     expect(JSON.parse(init?.body as string)).toEqual(validPayload)
 
-    expect(result).toBeInstanceOf(Response)
-    const response = result as Response
-    expect(response.status).toBe(302)
-    expect(response.headers.get("Location")).toBe(
-      `/students/${createdStudent.id}`
-    )
+    expect(result).toEqual({ ok: true, id: createdStudent.id })
   })
 
   it("returns validation errors and never calls fetch for an invalid payload", async () => {
@@ -46,15 +41,17 @@ describe("create-student action", () => {
     )
 
     expect(fetch).not.toHaveBeenCalled()
-    expect(result).not.toBeInstanceOf(Response)
-    expect(result).toHaveProperty("properties")
+    expect(result.ok).toBe(false)
+    expect(result).toHaveProperty("fieldErrors.properties")
   })
 
-  it("propagates an error when the backend rejects the create request", async () => {
+  it("returns an error result when the backend rejects the create request", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(null, { status: 500, statusText: "Internal Server Error" })
     )
 
-    await expect(action(args(validPayload))).rejects.toThrow()
+    const result = await action(args(validPayload))
+
+    expect(result.ok).toBe(false)
   })
 })

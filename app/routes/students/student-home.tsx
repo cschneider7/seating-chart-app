@@ -1,5 +1,5 @@
 import { UserPen } from "lucide-react"
-import { Link } from "react-router"
+import { StudentFormDialog } from "~/components/student-form-dialog"
 import { Button } from "~/components/ui/button"
 import {
   Empty,
@@ -24,9 +24,10 @@ export default function Component() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row justify-center gap-2">
-          <Button
-            render={<Link to="/students/new">Create Student</Link>}
-          ></Button>
+          <StudentFormDialog
+            mode="create"
+            trigger={<Button>Create Student</Button>}
+          />
         </EmptyContent>
       </Empty>
     </div>

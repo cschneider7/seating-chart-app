@@ -1,5 +1,6 @@
 import { Plus, Search } from "lucide-react"
-import { Link, NavLink } from "react-router"
+import { NavLink } from "react-router"
+import { StudentFormDialog } from "~/components/student-form-dialog"
 import { Label } from "~/components/ui/label"
 import {
   Sidebar,
@@ -42,11 +43,12 @@ export function StudentSidebar({ students }: { students: Student[] }) {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Students</SidebarGroupLabel>
-          <SidebarGroupAction
-            render={
-              <Link to="/students/new">
+          <StudentFormDialog
+            mode="create"
+            trigger={
+              <SidebarGroupAction>
                 <Plus /> <span className="sr-only">Create new student</span>
-              </Link>
+              </SidebarGroupAction>
             }
           />
           <SidebarMenu>

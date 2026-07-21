@@ -1,5 +1,6 @@
 import { ClipboardList, Plus, Trash2Icon } from "lucide-react"
 import { Form, Link, useNavigation } from "react-router"
+import { ClassroomFormDialog } from "~/components/classroom-form-dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,9 +60,10 @@ function EmptyClassrooms() {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row justify-center gap-2">
-        <Button render={<Link to="/classrooms/new"></Link>}>
-          Create Classroom
-        </Button>
+        <ClassroomFormDialog
+          mode="create"
+          trigger={<Button>Create Classroom</Button>}
+        />
       </EmptyContent>
     </Empty>
   )
@@ -83,10 +85,14 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
           variant="outline"
           render={<Link to={`/classrooms/${classroom.id}`}>View</Link>}
         />
-        <Button
-          size="sm"
-          variant="outline"
-          render={<Link to={`/classrooms/${classroom.id}/edit`}>Edit</Link>}
+        <ClassroomFormDialog
+          mode="edit"
+          classroom={classroom}
+          trigger={
+            <Button size="sm" variant="outline">
+              Edit
+            </Button>
+          }
         />
         <AlertDialog>
           <AlertDialogTrigger
@@ -137,14 +143,14 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         <EmptyClassrooms />
       ) : (
         <div>
-          <Button
-            render={
-              <Link to="/classrooms/new">
+          <ClassroomFormDialog
+            mode="create"
+            trigger={
+              <Button className="mb-4">
                 <Plus />
                 <span>Create classroom</span>
-              </Link>
+              </Button>
             }
-            className="mb-4"
           />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {classrooms.map((classroom) => (

@@ -1,178 +1,28 @@
-import { zodResolver } from "@hookform/resolvers/zod"
-import { Controller, useForm } from "react-hook-form"
-import { redirect, useActionData, useNavigation, useSubmit } from "react-router"
 import * as z from "zod"
-import { Button } from "~/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card"
-import {
-  Field,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "~/components/ui/field"
-import { Input } from "~/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select"
-import { Spinner } from "~/components/ui/spinner"
-import { getClassroom, updateClassroom } from "~/lib/api"
+import type { MutationResult } from "~/lib/action-results"
+import { updateClassroom } from "~/lib/api"
 import { UpdateClassroomSchema } from "~/lib/schemas"
 import type { Route } from "./+types/edit-classroom"
 
-const periodOptions = Array.from({ length: 9 }, (_, i) => ({
-  label: i.toString(),
-  value: i,
-}))
-
-export async function loader({ params }: Route.ClientLoaderArgs) {
-  const classroom = await getClassroom(params.classroomId)
-  return { classroom: classroom }
-}
-
-export async function action({ params, request }: Route.ActionArgs) {
+export async function action({
+  params,
+  request,
+}: Route.ActionArgs): Promise<MutationResult> {
   const rawData = await request.json()
   const result = UpdateClassroomSchema.safeParse(rawData)
 
   if (!result.success) {
-    return z.treeifyError(result.error)
+    return {
+      ok: false,
+      error: "Please check the form and try again.",
+      fieldErrors: z.treeifyError(result.error),
+    }
   }
 
-  await updateClassroom(params.classroomId, result.data)
-
-  return redirect(`/classrooms/${params.classroomId}`)
-}
-
-export default function Component({ loaderData }: Route.ComponentProps) {
-  const { classroom } = loaderData
-  const submit = useSubmit()
-  const actionData = useActionData<typeof action>()
-  const navigation = useNavigation()
-  const isSubmitting = navigation.state !== "idle"
-
-  const form = useForm<z.infer<typeof UpdateClassroomSchema>>({
-    resolver: zodResolver(UpdateClassroomSchema),
-    defaultValues: {
-      subject: classroom.subject,
-      period: classroom.period,
-    },
-  })
-
-  // formState is a proxy; dirtyFields must be read here, not inside onSubmit.
-  const { dirtyFields } = form.formState
-
-  const onSubmit = (data: z.infer<typeof UpdateClassroomSchema>) => {
-    const changedData = Object.fromEntries(
-      Object.entries(data).filter(
-        ([key]) => dirtyFields[key as keyof typeof dirtyFields]
-      )
-    )
-    submit(changedData, { method: "post", encType: "application/json" })
+  try {
+    await updateClassroom(params.classroomId, result.data)
+    return { ok: true, id: params.classroomId }
+  } catch (error) {
+    return { ok: false, error: (error as Error).message }
   }
-
-  return (
-    <div className="mx-auto w-full max-w-md">
-      <Card className="w-full sm:max-w-md">
-        <CardHeader>
-          <CardTitle>Edit classroom</CardTitle>
-          <CardDescription>Enter classroom info here.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {actionData && (
-            <p className="mb-4 text-sm text-destructive">
-              There was a problem with your submission. Please check the form
-              and try again.
-            </p>
-          )}
-          <form id="edit-classroom" onSubmit={form.handleSubmit(onSubmit)}>
-            <FieldGroup>
-              <Controller
-                name="subject"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel>
-                      Subject<span className="text-destructive">*</span>
-                    </FieldLabel>
-                    <Input
-                      {...field}
-                      aria-invalid={fieldState.invalid}
-                      placeholder="Math 2"
-                    />
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-              <Controller
-                name="period"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel>
-                      Period Number
-                      <span className="text-destructive">*</span>
-                    </FieldLabel>
-                    <Select
-                      name={field.name}
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      items={periodOptions}
-                    >
-                      <SelectTrigger
-                        aria-invalid={fieldState.invalid}
-                        className="w-full max-w-48"
-                      >
-                        <SelectValue placeholder="Select a period" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectGroup>
-                          {periodOptions.map((item) => (
-                            <SelectItem key={item.value} value={item.value}>
-                              {item.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-            </FieldGroup>
-          </form>
-        </CardContent>
-        <CardFooter>
-          <Field orientation="horizontal">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => form.reset()}
-              disabled={isSubmitting}
-            >
-              Reset
-            </Button>
-            <Button type="submit" form="edit-classroom" disabled={isSubmitting}>
-              {isSubmitting && <Spinner />}
-              Submit
-            </Button>
-          </Field>
-        </CardFooter>
-      </Card>
-    </div>
-  )
 }

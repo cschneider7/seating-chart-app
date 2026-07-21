@@ -23,7 +23,8 @@ import {
 } from "~/components/ui/card"
 
 import { Trash2Icon } from "lucide-react"
-import { Form, Link, useNavigation } from "react-router"
+import { Form, useNavigation } from "react-router"
+import { StudentFormDialog } from "~/components/student-form-dialog"
 import { Spinner } from "~/components/ui/spinner"
 import { getClassroom, getStudent } from "~/lib/api"
 import type { Route } from "./+types/student"
@@ -43,8 +44,7 @@ export async function loader({ params }: Route.ClientLoaderArgs) {
 export default function Component({ loaderData }: Route.ComponentProps) {
   const { student, classroom } = loaderData
   const navigation = useNavigation()
-  const isDeleting =
-    navigation.formAction === `/students/${student.id}/delete`
+  const isDeleting = navigation.formAction === `/students/${student.id}/delete`
   return (
     <div className="justify-center">
       <Card className="relative mx-auto w-full max-w-sm pt-0">
@@ -69,9 +69,10 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           Tags: <Badge variant="secondary">TODO</Badge>
         </CardContent>
         <CardFooter className="justify-end gap-2">
-          <Button
-            variant="outline"
-            render={<Link to={`/students/${student.id}/edit`}>Edit</Link>}
+          <StudentFormDialog
+            mode="edit"
+            student={student}
+            trigger={<Button variant="outline">Edit</Button>}
           />
           <AlertDialog>
             <AlertDialogTrigger
@@ -90,7 +91,9 @@ export default function Component({ loaderData }: Route.ComponentProps) {
               </AlertDialogHeader>
               <Form action={`/students/${student.id}/delete`} method="post">
                 <AlertDialogFooter>
-                  <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+                  <AlertDialogCancel variant="outline">
+                    Cancel
+                  </AlertDialogCancel>
                   <AlertDialogAction
                     variant="destructive"
                     type="submit"

@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from "~/components/ui/card"
 import { ThemeProvider } from "~/components/ui/theme-provider"
+import { Toaster } from "~/components/ui/sonner"
 import { Button } from "~/components/ui/button"
 import type { Route } from "./+types/root"
 import "./app.css"
@@ -59,7 +60,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
         <ScrollRestoration />
         <Scripts />
       </body>
