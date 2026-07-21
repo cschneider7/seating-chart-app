@@ -1,6 +1,6 @@
 import { useReactFlow, type Node, type NodeProps } from "@xyflow/react"
 import { Trash2Icon } from "lucide-react"
-import { useContext } from "react"
+import { memo, useContext } from "react"
 import { Button } from "~/components/ui/button"
 import { Item, ItemActions } from "~/components/ui/item"
 import {
@@ -12,7 +12,7 @@ import { BaseNode } from "../base-node"
 import { LockedContext } from "./context"
 import { StudentCardContent } from "./student-card-content"
 
-export function StudentNode({
+export const StudentNode = memo(function StudentNode({
   id,
   data,
   selected,
@@ -57,4 +57,4 @@ export function StudentNode({
       </Item>
     </BaseNode>
   )
-}
+})

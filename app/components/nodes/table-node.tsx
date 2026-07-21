@@ -6,6 +6,7 @@ import {
   type NodeProps,
 } from "@xyflow/react"
 import { GripVerticalIcon, MinusIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { memo } from "react"
 import { BaseNode, BaseNodeContent } from "~/components/base-node"
 import { Button } from "~/components/ui/button"
 import {
@@ -39,7 +40,7 @@ function withTableDims(
   )
 }
 
-export function TableNode({
+export const TableNode = memo(function TableNode({
   id,
   data,
 }: NodeProps<Node<TableNodeData, "table">>) {
@@ -228,4 +229,4 @@ export function TableNode({
       </NodeToolbar>
     </div>
   )
-}
+})
