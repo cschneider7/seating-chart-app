@@ -1,12 +1,14 @@
-import { Button } from "~/components/ui/button"
+import { ArrowUpRightIcon, ClipboardList, UsersRound } from "lucide-react"
+import { Link } from "react-router"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "~/components/ui/card"
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemTitle,
+} from "~/components/ui/item"
 import type { Route } from "./+types/home"
 
 export function meta({}: Route.MetaArgs) {
@@ -18,36 +20,43 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Home() {
   return (
-    <div>
-      <div className="flex min-h-svh p-6">
-        <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-          <div>
-            <h1 className="font-medium">Project ready!</h1>
-            <p>You may now add components and start building.</p>
-            <p>We&apos;ve already added the button component for you.</p>
-            <Button className="mt-2">Button</Button>
-          </div>
-          <Card className="max-w-sm">
-            <CardHeader>
-              <CardTitle>Project Overview</CardTitle>
-              <CardDescription>
-                Track progress and recent activity for your Vite app.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              Your design system is ready. Start building your next component.
-            </CardContent>
-            <CardContent>
-              <Button className="mt-2">Button</Button>
-            </CardContent>
-            <CardFooter>
-              <div className="font-mono text-xs text-muted-foreground">
-                (Press <kbd>d</kbd> to toggle dark mode)
-              </div>
-            </CardFooter>
-          </Card>
-        </div>
+    <div className="flex h-full flex-col items-center justify-center gap-6 p-6">
+      <div className="text-center">
+        <h1 className="text-2xl font-medium">Seating Chart</h1>
+        <p className="text-muted-foreground">
+          Manage your students, classrooms, and seating charts.
+        </p>
       </div>
+      <ItemGroup className="w-full max-w-md">
+        <Item variant="outline" render={<Link to="/students" />}>
+          <ItemMedia variant="image">
+            <UsersRound className="size-7" />
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle>Students</ItemTitle>
+            <ItemDescription>
+              View, add, and edit the student roster.
+            </ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ArrowUpRightIcon className="size-4 text-muted-foreground" />
+          </ItemActions>
+        </Item>
+        <Item variant="outline" render={<Link to="/classrooms" />}>
+          <ItemMedia variant="image">
+            <ClipboardList className="size-7" />
+          </ItemMedia>
+          <ItemContent>
+            <ItemTitle>Classrooms</ItemTitle>
+            <ItemDescription>
+              Manage classrooms and their seating charts.
+            </ItemDescription>
+          </ItemContent>
+          <ItemActions>
+            <ArrowUpRightIcon className="size-4 text-muted-foreground" />
+          </ItemActions>
+        </Item>
+      </ItemGroup>
     </div>
   )
 }

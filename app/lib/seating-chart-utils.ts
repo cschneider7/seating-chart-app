@@ -23,6 +23,7 @@ export type SeatingChartTableNode = {
   id: string
   type: "table"
   position: Point
+  deletable: false // deletion goes through TableNode's toolbar, which cascades to seats/students
   selected?: boolean
   className?: string
   data: TableNodeData
@@ -44,6 +45,7 @@ export type SeatingChartStudentNode = {
   type: "student"
   position: Point
   parentId?: string // set == seated (value is the owning seat's id), unset == unassigned
+  deletable: false // removal goes through StudentNode's delete button, which unassigns cleanly
   selected?: boolean
   className?: string
   data: StudentNodeData
@@ -91,10 +93,9 @@ export function getTableNodeSize(
 /**
  * Creates a new table's initial canvas position and default seat grid.
  * @param index - Table's position among the classroom's other tables
- * @param classroomId - Id of the classroom the table belongs to
  * @returns A new table, ready to be added to the canvas
  */
-export function createCanvasTable(index: number, classroomId: string): Table {
+export function createCanvasTable(index: number): Table {
   return {
     id: crypto.randomUUID(), // Placeholder value
     tableNumber: 0, // Placeholder value
@@ -127,6 +128,7 @@ export function buildInitialNodes(
       id: tableId,
       type: "table",
       position: { x: table.x_pos, y: table.y_pos },
+      deletable: false,
       data: {
         table_number: table.table_number,
         rows: table.rows,
@@ -169,6 +171,7 @@ export function buildInitialNodes(
           type: "student",
           position: { x: 0, y: 0 },
           parentId: seatId,
+          deletable: false,
           data: { student },
         }
         nodes.push(studentNode)
@@ -209,6 +212,11 @@ export function buildSeatingChartPayload(
   const studentNodes = nodes.filter(
     (n): n is SeatingChartStudentNode => n.type === "student"
   )
+  const studentBySeatId = new Map(
+    studentNodes
+      .filter((student) => student.parentId)
+      .map((student) => [student.parentId, student])
+  )
 
   return {
     tables: tableNodes.map((table, idx) => {
@@ -216,9 +224,7 @@ export function buildSeatingChartPayload(
         .filter((seat) => seat.parentId === table.id)
         .sort((a, b) => a.data.row - b.data.row || a.data.col - b.data.col)
       const seat_assignments = seats.map(
-        (seat) =>
-          studentNodes.find((student) => student.parentId === seat.id)?.id ??
-          null
+        (seat) => studentBySeatId.get(seat.id)?.id ?? null
       )
 
       return {

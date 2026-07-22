@@ -37,7 +37,7 @@ function makeSeatingChart(
 
 describe("createCanvasTable", () => {
   it("defaults to a 2x2 grid of seats", () => {
-    const table = createCanvasTable(0, "c1")
+    const table = createCanvasTable(0)
 
     expect(table.rows).toBe(DEFAULT_TABLE_ROWS)
     expect(table.cols).toBe(DEFAULT_TABLE_COLS)
@@ -45,23 +45,23 @@ describe("createCanvasTable", () => {
   })
 
   it("lays out tables left-to-right within a row", () => {
-    const first = createCanvasTable(0, "c1")
-    const second = createCanvasTable(1, "c1")
+    const first = createCanvasTable(0)
+    const second = createCanvasTable(1)
 
     expect(second.y_pos).toBe(first.y_pos)
     expect(second.x_pos - first.x_pos).toBe(TABLE_SPACING)
   })
 
   it("wraps to the next row after 4 tables", () => {
-    const first = createCanvasTable(0, "c1")
-    const fifth = createCanvasTable(4, "c1")
+    const first = createCanvasTable(0)
+    const fifth = createCanvasTable(4)
 
     expect(fifth.x_pos).toBe(first.x_pos)
     expect(fifth.y_pos).toBeGreaterThan(first.y_pos)
   })
 
   it("snaps the initial position to the grid offset", () => {
-    const table = createCanvasTable(0, "c1")
+    const table = createCanvasTable(0)
 
     expect(table.x_pos).toBe(TABLE_OFFSET)
     expect(table.y_pos).toBe(TABLE_OFFSET)
@@ -88,6 +88,7 @@ describe("buildInitialNodes", () => {
       id: "c1:0",
       type: "table",
       position: { x: 40, y: 60 },
+      deletable: false,
       data: {
         table_number: 0,
         rows: DEFAULT_TABLE_ROWS,
@@ -133,6 +134,7 @@ describe("buildInitialNodes", () => {
       type: "student",
       position: { x: 0, y: 0 },
       parentId: seatId,
+      deletable: false,
       data: { student },
     })
     expect(nodes.findIndex((n) => n.id === seatId)).toBeLessThan(
@@ -215,6 +217,7 @@ describe("buildSeatingChartPayload", () => {
       id: "a",
       type: "table",
       position: { x: 0, y: 0 },
+      deletable: false,
       data: { table_number: 0, rows: 2, cols: 2 },
     }
     const seatNodes: SeatingChartNode[] = []
@@ -237,6 +240,7 @@ describe("buildSeatingChartPayload", () => {
       type: "student",
       position: { x: 0, y: 0 },
       parentId: getSeatId("a", 1, 0),
+      deletable: false,
       data: { student },
     }
 
@@ -302,6 +306,7 @@ describe("reorderNodes", () => {
       id: "t",
       type: "table",
       position: { x: 0, y: 0 },
+      deletable: false,
       data: { table_number: 0, rows: 2, cols: 2 },
     }
     const seat: SeatingChartNode = {
@@ -319,6 +324,7 @@ describe("reorderNodes", () => {
       type: "student",
       position: { x: 0, y: 0 },
       parentId: "s",
+      deletable: false,
       data: { student: makeStudent("st") },
     }
 
@@ -333,12 +339,14 @@ describe("reorderNodes", () => {
       id: "ta",
       type: "table",
       position: { x: 0, y: 0 },
+      deletable: false,
       data: { table_number: 0, rows: 2, cols: 2 },
     }
     const tableB: SeatingChartNode = {
       id: "tb",
       type: "table",
       position: { x: 0, y: 0 },
+      deletable: false,
       data: { table_number: 1, rows: 2, cols: 2 },
     }
 
@@ -362,6 +370,7 @@ describe("getUnassignedStudents", () => {
         type: "student",
         position: { x: 0, y: 0 },
         parentId: "seat-1",
+        deletable: false,
         data: { student: makeStudent("s2") },
       },
     ]
@@ -378,6 +387,7 @@ describe("getUnassignedStudents", () => {
         id: "s3",
         type: "student",
         position: { x: 40, y: 40 },
+        deletable: false,
         data: { student: makeStudent("s3") },
       },
     ]

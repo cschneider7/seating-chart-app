@@ -1,5 +1,4 @@
 import { Moon, Sun } from "lucide-react"
-import { useFetcher, useRouteLoaderData } from "react-router"
 
 import { Button } from "~/components/ui/button"
 import {
@@ -8,14 +7,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu"
-import { useTheme, type Theme } from "~/components/ui/theme-provider"
+import { useTheme } from "~/components/ui/theme-provider"
 
 export function ThemeToggle() {
   const { setTheme } = useTheme();
-  const fetcher = useFetcher();
-
-  const rootData = useRouteLoaderData<{ theme: Theme }>("root");
-  const currentTheme = rootData?.theme ?? "light";
 
   return (
     <DropdownMenu>

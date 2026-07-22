@@ -6,9 +6,12 @@ export function StudentCardContent({ student }: { student: Student }) {
     <>
       <ItemHeader>
         <img
-          src="https://avatar.vercel.sh/shadcn1"
+          src={`https://avatar.vercel.sh/${student.id}`}
           alt="Student image"
           draggable="false"
+          width={100}
+          height={80}
+          loading="lazy"
           className="aspect-5/4 w-full rounded-sm object-cover brightness-60 grayscale dark:brightness-40"
         />
       </ItemHeader>

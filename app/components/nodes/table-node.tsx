@@ -6,7 +6,19 @@ import {
   type NodeProps,
 } from "@xyflow/react"
 import { GripVerticalIcon, MinusIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { memo, useState } from "react"
 import { BaseNode, BaseNodeContent } from "~/components/base-node"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog"
 import { Button } from "~/components/ui/button"
 import {
   MAX_TABLE_DIMENSION,
@@ -17,6 +29,8 @@ import {
   type SeatingChartSeatNode,
   type TableNodeData,
 } from "~/lib/seating-chart-utils"
+
+type PendingAction = "table" | "row" | "col" | null
 
 /**
  * Returns a copy of the node list with one table's row/column counts updated.
@@ -39,13 +53,20 @@ function withTableDims(
   )
 }
 
-export function TableNode({
+export const TableNode = memo(function TableNode({
   id,
   data,
 }: NodeProps<Node<TableNodeData, "table">>) {
-  const { setNodes } = useReactFlow<SeatingChartNode>()
+  const { setNodes, getNodes } = useReactFlow<SeatingChartNode>()
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null)
 
-  function handleRemoveTable() {
+  function seatsOccupied(seatIds: Set<string>) {
+    return getNodes().some(
+      (n) => n.type === "student" && n.parentId && seatIds.has(n.parentId)
+    )
+  }
+
+  function removeTable() {
     setNodes((nds) => {
       const seatIds = new Set(
         nds
@@ -83,8 +104,7 @@ export function TableNode({
     })
   }
 
-  function handleRemoveRow() {
-    if (data.rows <= 1) return
+  function removeRow() {
     const removedRow = data.rows - 1
     setNodes((nds) => {
       const removedSeatIds = new Set(
@@ -110,6 +130,25 @@ export function TableNode({
     })
   }
 
+  function handleRemoveRow() {
+    if (data.rows <= 1) return
+    const removedSeatIds = new Set(
+      getNodes()
+        .filter(
+          (n) =>
+            n.type === "seat" &&
+            n.parentId === id &&
+            n.data.row === data.rows - 1
+        )
+        .map((n) => n.id)
+    )
+    if (seatsOccupied(removedSeatIds)) {
+      setPendingAction("row")
+      return
+    }
+    removeRow()
+  }
+
   function handleAddColumn() {
     if (data.cols >= MAX_TABLE_DIMENSION) return
     const newCol = data.cols
@@ -131,8 +170,7 @@ export function TableNode({
     })
   }
 
-  function handleRemoveColumn() {
-    if (data.cols <= 1) return
+  function removeColumn() {
     const removedCol = data.cols - 1
     setNodes((nds) => {
       const removedSeatIds = new Set(
@@ -158,6 +196,32 @@ export function TableNode({
     })
   }
 
+  function handleRemoveColumn() {
+    if (data.cols <= 1) return
+    const removedSeatIds = new Set(
+      getNodes()
+        .filter(
+          (n) =>
+            n.type === "seat" &&
+            n.parentId === id &&
+            n.data.col === data.cols - 1
+        )
+        .map((n) => n.id)
+    )
+    if (seatsOccupied(removedSeatIds)) {
+      setPendingAction("col")
+      return
+    }
+    removeColumn()
+  }
+
+  function confirmPendingAction() {
+    if (pendingAction === "table") removeTable()
+    else if (pendingAction === "row") removeRow()
+    else if (pendingAction === "col") removeColumn()
+    setPendingAction(null)
+  }
+
   const { width, height } = getTableNodeSize(data.rows, data.cols)
 
   return (
@@ -179,6 +243,7 @@ export function TableNode({
             type="button"
             variant="ghost"
             size="icon-xs"
+            aria-label="Remove row"
             disabled={data.rows <= 1}
             onClick={handleRemoveRow}
           >
@@ -189,6 +254,7 @@ export function TableNode({
             type="button"
             variant="ghost"
             size="icon-xs"
+            aria-label="Add row"
             disabled={data.rows >= MAX_TABLE_DIMENSION}
             onClick={handleAddRow}
           >
@@ -200,6 +266,7 @@ export function TableNode({
             type="button"
             variant="ghost"
             size="icon-xs"
+            aria-label="Remove column"
             disabled={data.cols <= 1}
             onClick={handleRemoveColumn}
           >
@@ -210,6 +277,7 @@ export function TableNode({
             type="button"
             variant="ghost"
             size="icon-xs"
+            aria-label="Add column"
             disabled={data.cols >= MAX_TABLE_DIMENSION}
             onClick={handleAddColumn}
           >
@@ -220,12 +288,45 @@ export function TableNode({
           type="button"
           variant="destructive"
           size="xs"
-          onClick={handleRemoveTable}
+          onClick={() => setPendingAction("table")}
         >
           <Trash2Icon data-icon="inline-start" />
           <span>Delete</span>
         </Button>
       </NodeToolbar>
+      <AlertDialog
+        open={pendingAction !== null}
+        onOpenChange={(open) => !open && setPendingAction(null)}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+              <Trash2Icon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {pendingAction === "table"
+                ? `Delete Table ${data.table_number + 1}?`
+                : pendingAction === "row"
+                  ? "Remove this row?"
+                  : "Remove this column?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingAction === "table"
+                ? "This removes the table and all of its seats, unassigning any seated students."
+                : "This will unassign any students currently seated in it."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={confirmPendingAction}
+            >
+              {pendingAction === "table" ? "Delete" : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
-}
+})

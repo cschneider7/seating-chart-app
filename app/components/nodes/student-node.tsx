@@ -1,6 +1,6 @@
 import { useReactFlow, type Node, type NodeProps } from "@xyflow/react"
 import { Trash2Icon } from "lucide-react"
-import { useContext } from "react"
+import { memo, useContext } from "react"
 import { Button } from "~/components/ui/button"
 import { Item, ItemActions } from "~/components/ui/item"
 import {
@@ -12,7 +12,7 @@ import { BaseNode } from "../base-node"
 import { LockedContext } from "./context"
 import { StudentCardContent } from "./student-card-content"
 
-export function StudentNode({
+export const StudentNode = memo(function StudentNode({
   id,
   data,
   selected,
@@ -20,10 +20,7 @@ export function StudentNode({
   const locked = useContext(LockedContext)
   const { setNodes } = useReactFlow<SeatingChartNode>()
 
-  const styles = {
-    width: STUDENT_NODE_SIZE,
-    height: STUDENT_NODE_SIZE,
-  }
+  const styles = { width: STUDENT_NODE_SIZE, height: STUDENT_NODE_SIZE }
 
   const showSelectedUi = !!selected && !locked
 
@@ -33,7 +30,7 @@ export function StudentNode({
 
   return (
     <BaseNode
-      style={{ width: STUDENT_NODE_SIZE, height: STUDENT_NODE_SIZE }}
+      style={styles}
       className="cursor-grab touch-none select-none active:cursor-grabbing"
     >
       <Item
@@ -47,6 +44,7 @@ export function StudentNode({
               type="button"
               variant="ghost"
               size="icon-xs"
+              aria-label={`Remove ${data.student.name} from seat`}
               className="absolute right-0 -bottom-0.5"
               onClick={handleDelete}
             >
@@ -57,4 +55,4 @@ export function StudentNode({
       </Item>
     </BaseNode>
   )
-}
+})

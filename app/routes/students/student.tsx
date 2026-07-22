@@ -10,12 +10,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "~/components/ui/alert-dialog"
+import { Alert, AlertDescription } from "~/components/ui/alert"
 import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import {
   Card,
   CardAction,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -23,7 +23,12 @@ import {
 } from "~/components/ui/card"
 
 import { Trash2Icon } from "lucide-react"
-import { Form, Link } from "react-router"
+import { useEffect, useState } from "react"
+import { Link, useFetcher, useNavigate } from "react-router"
+import { StudentFormDialog } from "~/components/student-form-dialog"
+import { Spinner } from "~/components/ui/spinner"
+import { toast } from "sonner"
+import type { MutationResult } from "~/lib/action-results"
 import { getClassroom, getStudent } from "~/lib/api"
 import type { Route } from "./+types/student"
 
@@ -41,19 +46,49 @@ export async function loader({ params }: Route.ClientLoaderArgs) {
 
 export default function Component({ loaderData }: Route.ComponentProps) {
   const { student, classroom } = loaderData
+  const navigate = useNavigate()
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const deleteFetcher = useFetcher<MutationResult>()
+  const isDeleting = deleteFetcher.state !== "idle"
+  const deleteError =
+    deleteFetcher.data && !deleteFetcher.data.ok
+      ? deleteFetcher.data.error
+      : null
+
+  useEffect(() => {
+    if (deleteFetcher.state === "idle" && deleteFetcher.data?.ok) {
+      setDeleteOpen(false)
+      toast.success("Student deleted")
+      navigate("/students")
+    }
+  }, [deleteFetcher.state, deleteFetcher.data])
+
+  function handleDelete() {
+    deleteFetcher.submit(null, {
+      method: "post",
+      action: `/students/${student.id}/delete`,
+    })
+  }
+
   return (
     <div className="justify-center">
       <Card className="relative mx-auto w-full max-w-sm pt-0">
         <div className="absolute inset-0 z-30 aspect-video bg-black/35" />
         <img
-          src="https://avatar.vercel.sh/shadcn1"
+          src={`https://avatar.vercel.sh/${student.id}`}
           alt="Student image"
           className="relative z-20 aspect-video w-full object-cover brightness-60 grayscale dark:brightness-40"
         />
         <CardHeader>
           <CardAction>
             {classroom ? (
-              <Badge variant="secondary">Period {classroom.period}</Badge>
+              <Badge
+                variant="secondary"
+                render={<Link to={`/classrooms/${classroom.id}`} />}
+              >
+                Period {classroom.period}
+              </Badge>
             ) : (
               <Badge variant="outline">Unassigned</Badge>
             )}
@@ -61,15 +96,13 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           <CardTitle>{student.name}</CardTitle>
           <CardDescription>Student ID: {student.student_id}</CardDescription>
         </CardHeader>
-        <CardContent>
-          Tags: <Badge variant="secondary">TODO</Badge>
-        </CardContent>
         <CardFooter className="justify-end gap-2">
-          <Button
-            variant="outline"
-            render={<Link to={`/students/${student.id}/edit`}>Edit</Link>}
+          <StudentFormDialog
+            mode="edit"
+            student={student}
+            trigger={<Button variant="outline">Edit</Button>}
           />
-          <AlertDialog>
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
             <AlertDialogTrigger
               render={<Button variant="destructive">Delete</Button>}
             />
@@ -84,16 +117,22 @@ export default function Component({ loaderData }: Route.ComponentProps) {
                   Are you sure you want to continue?
                 </AlertDialogDescription>
               </AlertDialogHeader>
-              <Form action={`/students/${student.id}/delete`} method="post">
-                <AlertDialogFooter>
-                  <AlertDialogCancel variant="outline">
-                    Cancel
-                  </AlertDialogCancel>
-                  <AlertDialogAction variant="destructive" type="submit">
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </Form>
+              {deleteError && (
+                <Alert variant="destructive">
+                  <AlertDescription>{deleteError}</AlertDescription>
+                </Alert>
+              )}
+              <AlertDialogFooter>
+                <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  disabled={isDeleting}
+                  onClick={handleDelete}
+                >
+                  {isDeleting && <Spinner />}
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </CardFooter>

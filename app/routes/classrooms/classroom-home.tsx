@@ -1,5 +1,9 @@
-import { ArrowUpRightIcon, ClipboardList, Plus, Trash2Icon } from "lucide-react"
-import { Form, Link } from "react-router"
+import { ClipboardList, Plus, Trash2Icon } from "lucide-react"
+import { useEffect, useState } from "react"
+import { Link, useFetcher, useNavigate } from "react-router"
+import { toast } from "sonner"
+import { ClassroomFormDialog } from "~/components/classroom-form-dialog"
+import { Alert, AlertDescription } from "~/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,11 +16,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "~/components/ui/alert-dialog"
+import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import {
   Card,
   CardAction,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -30,7 +34,9 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "~/components/ui/empty"
-import { getClassrooms } from "~/lib/api"
+import { Spinner } from "~/components/ui/spinner"
+import type { MutationResult } from "~/lib/action-results"
+import { getClassrooms, getStudents } from "~/lib/api"
 import type { Classroom } from "~/lib/schemas"
 import type { Route } from "./+types/classroom-home"
 
@@ -42,8 +48,19 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader() {
-  const classrooms = await getClassrooms()
-  return { classrooms: classrooms }
+  const [classrooms, students] = await Promise.all([
+    getClassrooms(),
+    getStudents(),
+  ])
+  const studentCounts = new Map<string, number>()
+  for (const student of students) {
+    if (!student.classroom_id) continue
+    studentCounts.set(
+      student.classroom_id,
+      (studentCounts.get(student.classroom_id) ?? 0) + 1
+    )
+  }
+  return { classrooms, studentCounts: Object.fromEntries(studentCounts) }
 }
 
 function EmptyClassrooms() {
@@ -60,20 +77,57 @@ function EmptyClassrooms() {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row justify-center gap-2">
-        <Button render={<Link to="/classrooms/new"></Link>}>
-          Create Classroom
-        </Button>
+        <ClassroomFormDialog
+          mode="create"
+          trigger={<Button>Create classroom</Button>}
+        />
       </EmptyContent>
     </Empty>
   )
 }
 
-function ClassroomSummary({ classroom }: { classroom: Classroom }) {
+function ClassroomSummary({
+  classroom,
+  studentCount,
+}: {
+  classroom: Classroom
+  studentCount: number
+}) {
+  const navigate = useNavigate()
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const deleteFetcher = useFetcher<MutationResult>()
+  const isDeleting = deleteFetcher.state !== "idle"
+  const deleteError =
+    deleteFetcher.data && !deleteFetcher.data.ok
+      ? deleteFetcher.data.error
+      : null
+
+  useEffect(() => {
+    if (deleteFetcher.state === "idle" && deleteFetcher.data?.ok) {
+      setDeleteOpen(false)
+      toast.success("Classroom deleted")
+      navigate("/classrooms")
+    }
+  }, [deleteFetcher.state, deleteFetcher.data])
+
+  function handleDelete() {
+    deleteFetcher.submit(null, {
+      method: "post",
+      action: `/classrooms/${classroom.id}/delete`,
+    })
+  }
+
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Period {classroom.period}</CardTitle>
-        <CardDescription>Subject: {classroom.subject}</CardDescription>
+        <CardAction>
+          <Badge variant="secondary">Period {classroom.period}</Badge>
+        </CardAction>
+        <CardTitle>{classroom.subject}</CardTitle>
+        <CardDescription>
+          {studentCount} {studentCount === 1 ? "student" : "students"}
+        </CardDescription>
       </CardHeader>
       <CardFooter className="justify-end gap-2">
         <Button
@@ -81,12 +135,16 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
           variant="outline"
           render={<Link to={`/classrooms/${classroom.id}`}>View</Link>}
         />
-        <Button
-          size="sm"
-          variant="outline"
-          render={<Link to={`/classrooms/${classroom.id}/edit`}>Edit</Link>}
+        <ClassroomFormDialog
+          mode="edit"
+          classroom={classroom}
+          trigger={
+            <Button size="sm" variant="outline">
+              Edit
+            </Button>
+          }
         />
-        <AlertDialog>
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogTrigger
             render={
               <Button size="sm" variant="destructive">
@@ -107,14 +165,22 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
                 Are you sure you want to continue?
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <Form action={`/classrooms/${classroom.id}/delete`} method="post">
-              <AlertDialogFooter>
-                <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-                <AlertDialogAction variant="destructive" type="submit">
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </Form>
+            {deleteError && (
+              <Alert variant="destructive">
+                <AlertDescription>{deleteError}</AlertDescription>
+              </Alert>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={handleDelete}
+              >
+                {isDeleting && <Spinner />}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </CardFooter>
@@ -123,26 +189,29 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
 }
 
 export default function Component({ loaderData }: Route.ComponentProps) {
-  const { classrooms } = loaderData
+  const { classrooms, studentCounts } = loaderData
   return (
     <>
       {classrooms.length === 0 ? (
         <EmptyClassrooms />
       ) : (
         <div>
-          <Button
-            render={
-              <Link to="/classrooms/new">
+          <ClassroomFormDialog
+            mode="create"
+            trigger={
+              <Button className="mb-4">
                 <Plus />
                 <span>Create classroom</span>
-              </Link>
+              </Button>
             }
-            className="mb-4"
           />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {classrooms.map((classroom) => (
-              <div key={classroom.id} className="m-w-full flex flex-col">
-                <ClassroomSummary classroom={classroom} />
+              <div key={classroom.id} className="flex max-w-full flex-col">
+                <ClassroomSummary
+                  classroom={classroom}
+                  studentCount={studentCounts[classroom.id] ?? 0}
+                />
               </div>
             ))}
           </div>
