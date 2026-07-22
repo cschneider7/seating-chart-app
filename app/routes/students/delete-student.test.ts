@@ -13,7 +13,7 @@ const args = () =>
 stubFetch()
 
 describe("delete-student action", () => {
-  it("issues a DELETE request and redirects to the student list", async () => {
+  it("issues a DELETE request and returns ok", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 200 }))
 
     const result = await action(args())
@@ -23,17 +23,16 @@ describe("delete-student action", () => {
     expect(url).toBe(`http://localhost:3000/api/v1/students/${studentId}`)
     expect(init?.method).toBe("DELETE")
 
-    expect(result).toBeInstanceOf(Response)
-    const response = result as Response
-    expect(response.status).toBe(302)
-    expect(response.headers.get("Location")).toBe("/students")
+    expect(result).toEqual({ ok: true, id: studentId })
   })
 
-  it("propagates an error when the delete request fails", async () => {
+  it("returns an error result when the delete request fails", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(null, { status: 500, statusText: "Internal Server Error" })
     )
 
-    await expect(action(args())).rejects.toThrow()
+    const result = await action(args())
+
+    expect(result.ok).toBe(false)
   })
 })

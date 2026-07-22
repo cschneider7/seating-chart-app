@@ -66,10 +66,12 @@ export function RosterPanel({
   locked: boolean
 }) {
   return (
-    <div className="h-full rounded-lg border p-1">
+    <div className="h-40 shrink-0 rounded-lg border p-1 md:h-full">
       <ScrollArea className="h-full">
-        <div className="h-full min-h-0 w-45 shrink-0 p-3 transition-shadow">
-          <h4 className="mb-4 text-sm leading-none font-medium">Unassigned</h4>
+        <div className="h-full min-h-0 w-full shrink-0 p-3 transition-shadow md:w-45">
+          <h4 className="mb-4 text-sm leading-none font-medium">
+            Unassigned ({students.length})
+          </h4>
           <div className="flex flex-wrap justify-center gap-3">
             {students.length === 0 ? (
               <Empty className="gap-0 rounded-none border-none p-0">
@@ -273,12 +275,14 @@ function SeatingChartCanvasInner({
               type: "student",
               position: { x: 0, y: 0 },
               parentId: hitSeat.id,
+              deletable: false,
               data: { student },
             }
           : {
               id: studentId,
               type: "student",
               position: { x: dropRect.x, y: dropRect.y },
+              deletable: false,
               data: { student },
             }
 

@@ -1,6 +1,9 @@
 import { ClipboardList, Plus, Trash2Icon } from "lucide-react"
-import { Form, Link, useNavigation } from "react-router"
+import { useEffect, useState } from "react"
+import { Link, useFetcher, useNavigate } from "react-router"
+import { toast } from "sonner"
 import { ClassroomFormDialog } from "~/components/classroom-form-dialog"
+import { Alert, AlertDescription } from "~/components/ui/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -13,9 +16,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "~/components/ui/alert-dialog"
+import { Badge } from "~/components/ui/badge"
 import { Button } from "~/components/ui/button"
 import {
   Card,
+  CardAction,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -30,7 +35,8 @@ import {
   EmptyTitle,
 } from "~/components/ui/empty"
 import { Spinner } from "~/components/ui/spinner"
-import { getClassrooms } from "~/lib/api"
+import type { MutationResult } from "~/lib/action-results"
+import { getClassrooms, getStudents } from "~/lib/api"
 import type { Classroom } from "~/lib/schemas"
 import type { Route } from "./+types/classroom-home"
 
@@ -42,8 +48,19 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function loader() {
-  const classrooms = await getClassrooms()
-  return { classrooms: classrooms }
+  const [classrooms, students] = await Promise.all([
+    getClassrooms(),
+    getStudents(),
+  ])
+  const studentCounts = new Map<string, number>()
+  for (const student of students) {
+    if (!student.classroom_id) continue
+    studentCounts.set(
+      student.classroom_id,
+      (studentCounts.get(student.classroom_id) ?? 0) + 1
+    )
+  }
+  return { classrooms, studentCounts: Object.fromEntries(studentCounts) }
 }
 
 function EmptyClassrooms() {
@@ -62,22 +79,55 @@ function EmptyClassrooms() {
       <EmptyContent className="flex-row justify-center gap-2">
         <ClassroomFormDialog
           mode="create"
-          trigger={<Button>Create Classroom</Button>}
+          trigger={<Button>Create classroom</Button>}
         />
       </EmptyContent>
     </Empty>
   )
 }
 
-function ClassroomSummary({ classroom }: { classroom: Classroom }) {
-  const navigation = useNavigation()
-  const isDeleting =
-    navigation.formAction === `/classrooms/${classroom.id}/delete`
+function ClassroomSummary({
+  classroom,
+  studentCount,
+}: {
+  classroom: Classroom
+  studentCount: number
+}) {
+  const navigate = useNavigate()
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const deleteFetcher = useFetcher<MutationResult>()
+  const isDeleting = deleteFetcher.state !== "idle"
+  const deleteError =
+    deleteFetcher.data && !deleteFetcher.data.ok
+      ? deleteFetcher.data.error
+      : null
+
+  useEffect(() => {
+    if (deleteFetcher.state === "idle" && deleteFetcher.data?.ok) {
+      setDeleteOpen(false)
+      toast.success("Classroom deleted")
+      navigate("/classrooms")
+    }
+  }, [deleteFetcher.state, deleteFetcher.data])
+
+  function handleDelete() {
+    deleteFetcher.submit(null, {
+      method: "post",
+      action: `/classrooms/${classroom.id}/delete`,
+    })
+  }
+
   return (
-    <Card className="w-full max-w-sm">
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle>Period {classroom.period}</CardTitle>
-        <CardDescription>Subject: {classroom.subject}</CardDescription>
+        <CardAction>
+          <Badge variant="secondary">Period {classroom.period}</Badge>
+        </CardAction>
+        <CardTitle>{classroom.subject}</CardTitle>
+        <CardDescription>
+          {studentCount} {studentCount === 1 ? "student" : "students"}
+        </CardDescription>
       </CardHeader>
       <CardFooter className="justify-end gap-2">
         <Button
@@ -94,7 +144,7 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
             </Button>
           }
         />
-        <AlertDialog>
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
           <AlertDialogTrigger
             render={
               <Button size="sm" variant="destructive">
@@ -115,19 +165,22 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
                 Are you sure you want to continue?
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <Form action={`/classrooms/${classroom.id}/delete`} method="post">
-              <AlertDialogFooter>
-                <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  type="submit"
-                  disabled={isDeleting}
-                >
-                  {isDeleting && <Spinner />}
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </Form>
+            {deleteError && (
+              <Alert variant="destructive">
+                <AlertDescription>{deleteError}</AlertDescription>
+              </Alert>
+            )}
+            <AlertDialogFooter>
+              <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={handleDelete}
+              >
+                {isDeleting && <Spinner />}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
       </CardFooter>
@@ -136,7 +189,7 @@ function ClassroomSummary({ classroom }: { classroom: Classroom }) {
 }
 
 export default function Component({ loaderData }: Route.ComponentProps) {
-  const { classrooms } = loaderData
+  const { classrooms, studentCounts } = loaderData
   return (
     <>
       {classrooms.length === 0 ? (
@@ -155,7 +208,10 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {classrooms.map((classroom) => (
               <div key={classroom.id} className="flex max-w-full flex-col">
-                <ClassroomSummary classroom={classroom} />
+                <ClassroomSummary
+                  classroom={classroom}
+                  studentCount={studentCounts[classroom.id] ?? 0}
+                />
               </div>
             ))}
           </div>

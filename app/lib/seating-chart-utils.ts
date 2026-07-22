@@ -23,6 +23,7 @@ export type SeatingChartTableNode = {
   id: string
   type: "table"
   position: Point
+  deletable: false // deletion goes through TableNode's toolbar, which cascades to seats/students
   selected?: boolean
   className?: string
   data: TableNodeData
@@ -44,6 +45,7 @@ export type SeatingChartStudentNode = {
   type: "student"
   position: Point
   parentId?: string // set == seated (value is the owning seat's id), unset == unassigned
+  deletable: false // removal goes through StudentNode's delete button, which unassigns cleanly
   selected?: boolean
   className?: string
   data: StudentNodeData
@@ -126,6 +128,7 @@ export function buildInitialNodes(
       id: tableId,
       type: "table",
       position: { x: table.x_pos, y: table.y_pos },
+      deletable: false,
       data: {
         table_number: table.table_number,
         rows: table.rows,
@@ -168,6 +171,7 @@ export function buildInitialNodes(
           type: "student",
           position: { x: 0, y: 0 },
           parentId: seatId,
+          deletable: false,
           data: { student },
         }
         nodes.push(studentNode)

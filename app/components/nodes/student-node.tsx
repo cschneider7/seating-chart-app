@@ -44,6 +44,7 @@ export const StudentNode = memo(function StudentNode({
               type="button"
               variant="ghost"
               size="icon-xs"
+              aria-label={`Remove ${data.student.name} from seat`}
               className="absolute right-0 -bottom-0.5"
               onClick={handleDelete}
             >

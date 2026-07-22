@@ -10,6 +10,7 @@ export const SeatNode = memo(function SeatNode({}: NodeProps<
     <BaseNode
       className="pointer-events-none border-dashed bg-muted/40 hover:ring-0"
       style={{ width: SEAT_NODE_SIZE, height: SEAT_NODE_SIZE }}
+      tabIndex={-1}
     />
   )
 })

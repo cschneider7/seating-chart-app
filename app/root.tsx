@@ -73,7 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden px-16 py-8">
+    <div className="flex h-dvh flex-col overflow-hidden px-4 py-4 sm:px-8 sm:py-6 lg:px-16 lg:py-8">
       <div className="shrink-0">
         <Navbar />
       </div>

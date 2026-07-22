@@ -1,14 +1,31 @@
 import { useNodesState } from "@xyflow/react"
-import { Plus } from "lucide-react"
+import { ArrowLeftIcon, Plus, UsersRoundIcon } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { useFetcher } from "react-router"
+import { Link, useFetcher } from "react-router"
 import {
   RosterPanel,
   SeatingChartCanvas,
 } from "~/components/seating-chart-canvas"
 import { Alert, AlertDescription } from "~/components/ui/alert"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "~/components/ui/alert-dialog"
 import { Button } from "~/components/ui/button"
 import { Spinner } from "~/components/ui/spinner"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "~/components/ui/tooltip"
 import {
   getClassroom,
   getClassroomSeatingChart,
@@ -28,6 +45,25 @@ import {
   type SeatingChartTableNode,
 } from "../../lib/seating-chart-utils"
 import type { Route } from "./+types/classroom"
+
+/** Wraps a disabled toolbar button with a tooltip explaining why it's disabled while locked. */
+function LockedHint({
+  locked,
+  children,
+}: {
+  locked: boolean
+  children: React.ReactElement
+}) {
+  if (!locked) {
+    return children
+  }
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span />}>{children}</TooltipTrigger>
+      <TooltipContent>Click Edit to make changes.</TooltipContent>
+    </Tooltip>
+  )
+}
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -62,6 +98,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
   const { classroom, students, seatingChart } = loaderData
 
   const [locked, setLocked] = useState(true)
+  const [unassignAllOpen, setUnassignAllOpen] = useState(false)
 
   const studentsById = useMemo(
     () => new Map(students.map((s) => [s.id, s])),
@@ -79,10 +116,11 @@ export default function Component({ loaderData }: Route.ComponentProps) {
   const saveError = fetcher.data && !fetcher.data.ok ? fetcher.data.error : null
 
   useEffect(() => {
-    if (fetcher.state === "idle" && saveError) {
-      setLocked(false)
+    if (fetcher.state !== "idle" || !fetcher.data) {
+      return
     }
-  }, [fetcher.state, saveError])
+    setLocked(fetcher.data.ok)
+  }, [fetcher.state, fetcher.data])
 
   const unassigned = useMemo(
     () => getUnassignedStudents(students, nodes),
@@ -95,7 +133,6 @@ export default function Component({ loaderData }: Route.ComponentProps) {
     )
     const payload = buildSeatingChartPayload(nodes)
     fetcher.submit(payload, { method: "post", encType: "application/json" })
-    setLocked(true)
   }
 
   function handleCancel() {
@@ -111,6 +148,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
       id: table.id,
       type: "table",
       position: { x: table.x_pos, y: table.y_pos },
+      deletable: false,
       data: { table_number: tableNumber, rows: table.rows, cols: table.cols },
     }
     const seatNodes: SeatingChartSeatNode[] = []
@@ -135,11 +173,21 @@ export default function Component({ loaderData }: Route.ComponentProps) {
 
   function handleUnassignAll() {
     setNodes((nds) => nds.filter((n) => n.type !== "student"))
+    setUnassignAllOpen(false)
   }
 
   return (
-    <div className="flex h-full flex-col p-4">
+    <div className="flex h-full flex-col">
       <div className="shrink-0">
+        <Button
+          variant="link"
+          size="sm"
+          className="mb-1 px-0 text-muted-foreground"
+          render={<Link to="/classrooms" />}
+        >
+          <ArrowLeftIcon />
+          <span>Classrooms</span>
+        </Button>
         <h2 className="text-2xl font-medium">Period {classroom.period}</h2>
         <h3 className="text-sm text-muted-foreground">{classroom.subject}</h3>
       </div>
@@ -168,19 +216,50 @@ export default function Component({ loaderData }: Route.ComponentProps) {
             </Button>
           </>
         )}
-        <Button variant="secondary" disabled={locked} onClick={handleAddTable}>
-          <Plus />
-          <span>Add table</span>
-        </Button>
-        <Button
-          disabled={locked}
-          variant="destructive"
-          onClick={handleUnassignAll}
-        >
-          Unassign All
-        </Button>
+        <LockedHint locked={locked}>
+          <Button
+            variant="secondary"
+            disabled={locked}
+            onClick={handleAddTable}
+          >
+            <Plus />
+            <span>Add table</span>
+          </Button>
+        </LockedHint>
+        <LockedHint locked={locked}>
+          <AlertDialog open={unassignAllOpen} onOpenChange={setUnassignAllOpen}>
+            <AlertDialogTrigger
+              render={
+                <Button disabled={locked} variant="destructive">
+                  Unassign All
+                </Button>
+              }
+            />
+            <AlertDialogContent size="sm">
+              <AlertDialogHeader>
+                <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+                  <UsersRoundIcon />
+                </AlertDialogMedia>
+                <AlertDialogTitle>Unassign all students?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This clears every seat assignment on this chart. It isn't
+                  saved until you click Save.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={handleUnassignAll}
+                >
+                  Unassign All
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </LockedHint>
       </div>
-      <div className="flex min-h-0 w-full flex-1 gap-4">
+      <div className="flex min-h-0 w-full flex-1 flex-col gap-4 md:flex-row">
         <RosterPanel students={unassigned} locked={locked} />
         <SeatingChartCanvas
           nodes={nodes}

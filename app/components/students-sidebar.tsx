@@ -1,8 +1,15 @@
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, UsersIcon, XIcon } from "lucide-react"
 import { useMemo, useState } from "react"
 import { NavLink } from "react-router"
 import { StudentFormDialog } from "~/components/student-form-dialog"
-import { Empty, EmptyDescription } from "~/components/ui/empty"
+import { Button } from "~/components/ui/button"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "~/components/ui/empty"
 import {
   InputGroup,
   InputGroupAddon,
@@ -21,7 +28,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "~/components/ui/sidebar"
-import type { Student } from "~/lib/schemas"
+import type { Classroom, Student } from "~/lib/schemas"
 
 function SearchForm({
   query,
@@ -49,8 +56,18 @@ function SearchForm({
   )
 }
 
-export function StudentSidebar({ students }: { students: Student[] }) {
+export function StudentSidebar({
+  students,
+  classrooms,
+}: {
+  students: Student[]
+  classrooms: Classroom[]
+}) {
   const [query, setQuery] = useState("")
+  const classroomsById = useMemo(
+    () => new Map(classrooms.map((c) => [c.id, c])),
+    [classrooms]
+  )
   const filteredStudents = useMemo(
     () =>
       students.filter((student) =>
@@ -77,21 +94,50 @@ export function StudentSidebar({ students }: { students: Student[] }) {
           />
           {filteredStudents.length > 0 ? (
             <SidebarMenu>
-              {filteredStudents.map((student) => (
-                <SidebarMenuItem key={student.id}>
-                  <SidebarMenuButton
-                    render={
-                      <NavLink to={`/students/${student.id}`}>
-                        {student.name}
-                      </NavLink>
-                    }
-                  />
-                </SidebarMenuItem>
-              ))}
+              {filteredStudents.map((student) => {
+                const classroom = student.classroom_id
+                  ? classroomsById.get(student.classroom_id)
+                  : null
+                return (
+                  <SidebarMenuItem key={student.id}>
+                    <SidebarMenuButton
+                      size="lg"
+                      render={<NavLink to={`/students/${student.id}`} />}
+                    >
+                      <span className="flex flex-col overflow-hidden">
+                        <span className="truncate">{student.name}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {classroom
+                            ? `Period ${classroom.period}`
+                            : "Unassigned"}
+                        </span>
+                      </span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              })}
             </SidebarMenu>
+          ) : students.length === 0 ? (
+            <Empty className="gap-2 rounded-none border-none p-4">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <UsersIcon />
+                </EmptyMedia>
+                <EmptyTitle>No students yet</EmptyTitle>
+                <EmptyDescription>
+                  Use the + button above to add your first student.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           ) : (
-            <Empty className="gap-0 rounded-none border-none p-4">
-              <EmptyDescription>No students found.</EmptyDescription>
+            <Empty className="gap-2 rounded-none border-none p-4">
+              <EmptyDescription>
+                No students match &quot;{query}&quot;.
+              </EmptyDescription>
+              <Button variant="outline" size="sm" onClick={() => setQuery("")}>
+                <XIcon />
+                <span>Clear search</span>
+              </Button>
             </Empty>
           )}
         </SidebarGroup>
