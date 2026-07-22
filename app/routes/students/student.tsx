@@ -21,6 +21,11 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "~/components/ui/tooltip"
 
 import { Trash2Icon } from "lucide-react"
 import { useEffect, useState } from "react"
@@ -83,12 +88,19 @@ export default function Component({ loaderData }: Route.ComponentProps) {
         <CardHeader>
           <CardAction>
             {classroom ? (
-              <Badge
-                variant="secondary"
-                render={<Link to={`/classrooms/${classroom.id}`} />}
-              >
-                Period {classroom.period}
-              </Badge>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Badge
+                      variant="secondary"
+                      render={<Link to={`/classrooms/${classroom.id}`} />}
+                    >
+                      Period {classroom.period}
+                    </Badge>
+                  }
+                />
+                <TooltipContent>Go to classroom</TooltipContent>
+              </Tooltip>
             ) : (
               <Badge variant="outline">Unassigned</Badge>
             )}
