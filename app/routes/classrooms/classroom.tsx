@@ -6,6 +6,7 @@ import {
   RosterPanel,
   SeatingChartCanvas,
 } from "~/components/seating-chart-canvas"
+import { Alert, AlertDescription } from "~/components/ui/alert"
 import { Button } from "~/components/ui/button"
 import { Spinner } from "~/components/ui/spinner"
 import {
@@ -104,7 +105,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
 
   function handleAddTable() {
     const tableNumber = nodes.filter((n) => n.type === "table").length
-    const table = createCanvasTable(tableNumber, classroom.id)
+    const table = createCanvasTable(tableNumber)
 
     const tableNode: SeatingChartTableNode = {
       id: table.id,
@@ -139,12 +140,14 @@ export default function Component({ loaderData }: Route.ComponentProps) {
   return (
     <div className="flex h-full flex-col p-4">
       <div className="shrink-0">
-        <h2>Period {classroom.period}</h2>
-        <h3>{classroom.subject}</h3>
+        <h2 className="text-2xl font-medium">Period {classroom.period}</h2>
+        <h3 className="text-sm text-muted-foreground">{classroom.subject}</h3>
       </div>
       <div className="flex shrink-0 items-center justify-end gap-2 pb-2">
         {saveError && (
-          <p className="mr-auto text-sm text-destructive">{saveError}</p>
+          <Alert variant="destructive" className="mr-auto py-2">
+            <AlertDescription>{saveError}</AlertDescription>
+          </Alert>
         )}
         {locked ? (
           <Button variant="secondary" onClick={() => setLocked(false)}>

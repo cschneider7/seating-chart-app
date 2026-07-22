@@ -37,7 +37,7 @@ function makeSeatingChart(
 
 describe("createCanvasTable", () => {
   it("defaults to a 2x2 grid of seats", () => {
-    const table = createCanvasTable(0, "c1")
+    const table = createCanvasTable(0)
 
     expect(table.rows).toBe(DEFAULT_TABLE_ROWS)
     expect(table.cols).toBe(DEFAULT_TABLE_COLS)
@@ -45,23 +45,23 @@ describe("createCanvasTable", () => {
   })
 
   it("lays out tables left-to-right within a row", () => {
-    const first = createCanvasTable(0, "c1")
-    const second = createCanvasTable(1, "c1")
+    const first = createCanvasTable(0)
+    const second = createCanvasTable(1)
 
     expect(second.y_pos).toBe(first.y_pos)
     expect(second.x_pos - first.x_pos).toBe(TABLE_SPACING)
   })
 
   it("wraps to the next row after 4 tables", () => {
-    const first = createCanvasTable(0, "c1")
-    const fifth = createCanvasTable(4, "c1")
+    const first = createCanvasTable(0)
+    const fifth = createCanvasTable(4)
 
     expect(fifth.x_pos).toBe(first.x_pos)
     expect(fifth.y_pos).toBeGreaterThan(first.y_pos)
   })
 
   it("snaps the initial position to the grid offset", () => {
-    const table = createCanvasTable(0, "c1")
+    const table = createCanvasTable(0)
 
     expect(table.x_pos).toBe(TABLE_OFFSET)
     expect(table.y_pos).toBe(TABLE_OFFSET)

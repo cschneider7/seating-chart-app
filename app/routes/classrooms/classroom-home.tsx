@@ -154,7 +154,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {classrooms.map((classroom) => (
-              <div key={classroom.id} className="m-w-full flex flex-col">
+              <div key={classroom.id} className="flex max-w-full flex-col">
                 <ClassroomSummary classroom={classroom} />
               </div>
             ))}

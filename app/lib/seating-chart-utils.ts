@@ -91,10 +91,9 @@ export function getTableNodeSize(
 /**
  * Creates a new table's initial canvas position and default seat grid.
  * @param index - Table's position among the classroom's other tables
- * @param classroomId - Id of the classroom the table belongs to
  * @returns A new table, ready to be added to the canvas
  */
-export function createCanvasTable(index: number, classroomId: string): Table {
+export function createCanvasTable(index: number): Table {
   return {
     id: crypto.randomUUID(), // Placeholder value
     tableNumber: 0, // Placeholder value

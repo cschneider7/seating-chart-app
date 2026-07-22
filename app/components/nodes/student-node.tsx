@@ -20,10 +20,7 @@ export const StudentNode = memo(function StudentNode({
   const locked = useContext(LockedContext)
   const { setNodes } = useReactFlow<SeatingChartNode>()
 
-  const styles = {
-    width: STUDENT_NODE_SIZE,
-    height: STUDENT_NODE_SIZE,
-  }
+  const styles = { width: STUDENT_NODE_SIZE, height: STUDENT_NODE_SIZE }
 
   const showSelectedUi = !!selected && !locked
 
@@ -33,7 +30,7 @@ export const StudentNode = memo(function StudentNode({
 
   return (
     <BaseNode
-      style={{ width: STUDENT_NODE_SIZE, height: STUDENT_NODE_SIZE }}
+      style={styles}
       className="cursor-grab touch-none select-none active:cursor-grabbing"
     >
       <Item
