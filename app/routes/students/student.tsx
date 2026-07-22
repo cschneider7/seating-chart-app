@@ -15,7 +15,6 @@ import { Button } from "~/components/ui/button"
 import {
   Card,
   CardAction,
-  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -50,7 +49,7 @@ export default function Component({ loaderData }: Route.ComponentProps) {
       <Card className="relative mx-auto w-full max-w-sm pt-0">
         <div className="absolute inset-0 z-30 aspect-video bg-black/35" />
         <img
-          src="https://avatar.vercel.sh/shadcn1"
+          src={`https://avatar.vercel.sh/${student.id}`}
           alt="Student image"
           className="relative z-20 aspect-video w-full object-cover brightness-60 grayscale dark:brightness-40"
         />
@@ -65,9 +64,6 @@ export default function Component({ loaderData }: Route.ComponentProps) {
           <CardTitle>{student.name}</CardTitle>
           <CardDescription>Student ID: {student.student_id}</CardDescription>
         </CardHeader>
-        <CardContent>
-          Tags: <Badge variant="secondary">TODO</Badge>
-        </CardContent>
         <CardFooter className="justify-end gap-2">
           <StudentFormDialog
             mode="edit"

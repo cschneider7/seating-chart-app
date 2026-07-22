@@ -14,10 +14,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog"
+import { Alert, AlertDescription } from "~/components/ui/alert"
 import { Button } from "~/components/ui/button"
 import {
   Field,
-  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
@@ -132,7 +132,9 @@ export function StudentFormDialog(props: StudentFormDialogProps) {
           </DialogDescription>
         </DialogHeader>
         {submitFetcher.data && !submitFetcher.data.ok && (
-          <p className="text-sm text-destructive">{submitFetcher.data.error}</p>
+          <Alert variant="destructive">
+            <AlertDescription>{submitFetcher.data.error}</AlertDescription>
+          </Alert>
         )}
         <form id="student-form" onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>
@@ -180,15 +182,10 @@ export function StudentFormDialog(props: StudentFormDialogProps) {
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldContent>
-                    <FieldLabel>Classroom</FieldLabel>
-                    <FieldDescription>
-                      The classroom the student is enrolled in
-                    </FieldDescription>
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </FieldContent>
+                  <FieldLabel>Classroom</FieldLabel>
+                  <FieldDescription>
+                    The classroom the student is enrolled in
+                  </FieldDescription>
                   <Select
                     name={field.name}
                     value={field.value}
@@ -212,6 +209,9 @@ export function StudentFormDialog(props: StudentFormDialogProps) {
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
                 </Field>
               )}
             />

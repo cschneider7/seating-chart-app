@@ -36,8 +36,10 @@ describe("create-classroom action", () => {
     const result = await action(args({ subject: "", period: -1 }))
 
     expect(fetch).not.toHaveBeenCalled()
-    expect(result.ok).toBe(false)
-    expect(result).toHaveProperty("fieldErrors.properties")
+    expect(result).toEqual({
+      ok: false,
+      error: "Please check the form and try again.",
+    })
   })
 
   it("returns an error result when the backend rejects the create request", async () => {

@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "~/components/ui/dialog"
+import { Alert, AlertDescription } from "~/components/ui/alert"
 import { Button } from "~/components/ui/button"
 import {
   Field,
@@ -117,7 +118,9 @@ export function ClassroomFormDialog(props: ClassroomFormDialogProps) {
           </DialogDescription>
         </DialogHeader>
         {fetcher.data && !fetcher.data.ok && (
-          <p className="text-sm text-destructive">{fetcher.data.error}</p>
+          <Alert variant="destructive">
+            <AlertDescription>{fetcher.data.error}</AlertDescription>
+          </Alert>
         )}
         <form id="classroom-form" onSubmit={form.handleSubmit(onSubmit)}>
           <FieldGroup>

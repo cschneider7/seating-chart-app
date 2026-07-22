@@ -1,4 +1,3 @@
-import * as z from "zod"
 import type { MutationResult } from "~/lib/action-results"
 import { getClassrooms, updateStudent } from "~/lib/api"
 import { UpdateStudentSchema } from "~/lib/schemas"
@@ -17,11 +16,7 @@ export async function action({
   const result = UpdateStudentSchema.safeParse(rawData)
 
   if (!result.success) {
-    return {
-      ok: false,
-      error: "Please check the form and try again.",
-      fieldErrors: z.treeifyError(result.error),
-    }
+    return { ok: false, error: "Please check the form and try again." }
   }
 
   try {

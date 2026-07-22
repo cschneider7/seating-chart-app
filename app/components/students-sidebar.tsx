@@ -2,6 +2,7 @@ import { Plus, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { NavLink } from "react-router"
 import { StudentFormDialog } from "~/components/student-form-dialog"
+import { Empty, EmptyDescription } from "~/components/ui/empty"
 import {
   InputGroup,
   InputGroupAddon,
@@ -89,9 +90,9 @@ export function StudentSidebar({ students }: { students: Student[] }) {
               ))}
             </SidebarMenu>
           ) : (
-            <p className="text-muted-foreground px-2 text-sm">
-              No students found.
-            </p>
+            <Empty className="gap-0 rounded-none border-none p-4">
+              <EmptyDescription>No students found.</EmptyDescription>
+            </Empty>
           )}
         </SidebarGroup>
       </SidebarContent>

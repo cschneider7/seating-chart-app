@@ -18,6 +18,7 @@ import { SeatNode } from "~/components/nodes/seat-node"
 import { StudentCardContent } from "~/components/nodes/student-card-content"
 import { StudentNode } from "~/components/nodes/student-node"
 import { TableNode } from "~/components/nodes/table-node"
+import { Empty, EmptyDescription } from "~/components/ui/empty"
 import { Item } from "~/components/ui/item"
 import { ScrollArea } from "~/components/ui/scroll-area"
 import type { Student } from "~/lib/schemas"
@@ -71,7 +72,9 @@ export function RosterPanel({
           <h4 className="mb-4 text-sm leading-none font-medium">Unassigned</h4>
           <div className="flex flex-wrap justify-center gap-3">
             {students.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Empty</p>
+              <Empty className="gap-0 rounded-none border-none p-0">
+                <EmptyDescription>Empty</EmptyDescription>
+              </Empty>
             ) : (
               students.map((student) => (
                 <StudentChip
