@@ -1,4 +1,4 @@
-import { Plus, Search, UsersIcon, XIcon } from "lucide-react"
+import { Plus, Search, UsersIcon } from "lucide-react"
 import { useMemo, useState } from "react"
 import { NavLink } from "react-router"
 import { StudentFormDialog } from "~/components/student-form-dialog"
@@ -15,20 +15,23 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "~/components/ui/input-group"
+import { Item, ItemGroup } from "~/components/ui/item"
+import { ScrollArea } from "~/components/ui/scroll-area"
+import { Separator } from "~/components/ui/separator"
 import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupAction,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "~/components/ui/sidebar"
-import type { Classroom, Student } from "~/lib/schemas"
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "~/components/ui/sheet"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "~/components/ui/tooltip"
+import type { Student } from "~/lib/schemas"
 
 function SearchForm({
   query,
@@ -38,36 +41,29 @@ function SearchForm({
   onQueryChange: (value: string) => void
 }) {
   return (
-    <SidebarGroup className="py-0">
-      <SidebarGroupContent>
-        <InputGroup>
-          <InputGroupInput
-            aria-label="Search students"
-            placeholder="Search..."
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-          />
-          <InputGroupAddon>
-            <Search />
-          </InputGroupAddon>
-        </InputGroup>
-      </SidebarGroupContent>
-    </SidebarGroup>
+    <InputGroup>
+      <InputGroupInput
+        aria-label="Search students"
+        placeholder="Search..."
+        value={query}
+        onChange={(e) => onQueryChange(e.target.value)}
+      />
+      <InputGroupAddon>
+        <Search />
+      </InputGroupAddon>
+    </InputGroup>
   )
 }
 
-export function StudentSidebar({
+function RosterList({
   students,
-  classrooms,
+  query,
+  onQueryChange,
 }: {
   students: Student[]
-  classrooms: Classroom[]
+  query: string
+  onQueryChange: (value: string) => void
 }) {
-  const [query, setQuery] = useState("")
-  const classroomsById = useMemo(
-    () => new Map(classrooms.map((c) => [c.id, c])),
-    [classrooms]
-  )
   const filteredStudents = useMemo(
     () =>
       students.filter((student) =>
@@ -77,72 +73,107 @@ export function StudentSidebar({
   )
 
   return (
-    <Sidebar collapsible="none">
-      <SidebarHeader>
-        <SearchForm query={query} onQueryChange={setQuery} />
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Students</SidebarGroupLabel>
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <SearchForm query={query} onQueryChange={onQueryChange} />
+      <div className="flex items-center justify-between px-1">
+        <span className="text-sm font-medium text-muted-foreground">
+          Students
+        </span>
+        <Tooltip>
           <StudentFormDialog
             mode="create"
             trigger={
-              <SidebarGroupAction>
-                <Plus /> <span className="sr-only">Create new student</span>
-              </SidebarGroupAction>
+              <TooltipTrigger
+                render={
+                  <Button variant="ghost" size="icon-sm">
+                    <Plus /> <span className="sr-only">Create new student</span>
+                  </Button>
+                }
+              />
             }
           />
-          {filteredStudents.length > 0 ? (
-            <SidebarMenu>
-              {filteredStudents.map((student) => {
-                const classroom = student.classroom_id
-                  ? classroomsById.get(student.classroom_id)
-                  : null
-                return (
-                  <SidebarMenuItem key={student.id}>
-                    <SidebarMenuButton
-                      size="lg"
-                      render={<NavLink to={`/students/${student.id}`} />}
-                    >
-                      <span className="flex flex-col overflow-hidden">
-                        <span className="truncate">{student.name}</span>
-                        <span className="truncate text-xs text-muted-foreground">
-                          {classroom
-                            ? `Period ${classroom.period}`
-                            : "Unassigned"}
-                        </span>
-                      </span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              })}
-            </SidebarMenu>
-          ) : students.length === 0 ? (
-            <Empty className="gap-2 rounded-none border-none p-4">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <UsersIcon />
-                </EmptyMedia>
-                <EmptyTitle>No students yet</EmptyTitle>
-                <EmptyDescription>
-                  Use the + button above to add your first student.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <Empty className="gap-2 rounded-none border-none p-4">
-              <EmptyDescription>
-                No students match &quot;{query}&quot;.
-              </EmptyDescription>
-              <Button variant="outline" size="sm" onClick={() => setQuery("")}>
-                <XIcon />
-                <span>Clear search</span>
-              </Button>
-            </Empty>
-          )}
-        </SidebarGroup>
-      </SidebarContent>
-      <SidebarFooter />
-    </Sidebar>
+          <TooltipContent>Create new student</TooltipContent>
+        </Tooltip>
+      </div>
+      {filteredStudents.length > 0 ? (
+        <ScrollArea className="min-h-0 flex-1">
+          <ItemGroup className="gap-1 pr-3">
+            {filteredStudents.map((student) => (
+              <Item
+                key={student.id}
+                size="xs"
+                render={<NavLink to={`/students/${student.id}`} />}
+              >
+                <span className="truncate">{student.name}</span>
+              </Item>
+            ))}
+          </ItemGroup>
+        </ScrollArea>
+      ) : students.length === 0 ? (
+        <Empty className="gap-2 rounded-none border-none p-4">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <UsersIcon />
+            </EmptyMedia>
+            <EmptyTitle>No students yet</EmptyTitle>
+            <EmptyDescription>
+              Use the + button above to add your first student.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <Empty className="justify-start gap-2 rounded-none border-none p-4">
+          <EmptyDescription>No students found</EmptyDescription>
+        </Empty>
+      )}
+    </div>
+  )
+}
+
+export function StudentSidebar({ students }: { students: Student[] }) {
+  const [query, setQuery] = useState("")
+
+  return (
+    <div className="hidden h-full w-56 shrink-0 flex-col border-r border-border md:flex">
+      <div className="min-h-0 flex-1 p-3">
+        <RosterList
+          students={students}
+          query={query}
+          onQueryChange={setQuery}
+        />
+      </div>
+    </div>
+  )
+}
+
+export function MobileStudentDrawer({ students }: { students: Student[] }) {
+  const [query, setQuery] = useState("")
+
+  return (
+    <Sheet>
+      <SheetTrigger
+        render={
+          <Button variant="outline" className="mb-2 md:hidden">
+            <UsersIcon />
+            <span>Students</span>
+          </Button>
+        }
+      />
+      <SheetContent side="left" className="flex w-full max-w-xs flex-col p-0">
+        <SheetHeader>
+          <SheetTitle>Students</SheetTitle>
+          <SheetDescription className="sr-only">
+            Browse and search students
+          </SheetDescription>
+        </SheetHeader>
+        <div className="min-h-0 flex-1 px-4 pb-4">
+          <RosterList
+            students={students}
+            query={query}
+            onQueryChange={setQuery}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
   )
 }

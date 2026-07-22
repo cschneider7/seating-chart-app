@@ -20,6 +20,7 @@ import {
 } from "~/components/ui/card"
 import { ThemeProvider } from "~/components/ui/theme-provider"
 import { Toaster } from "~/components/ui/sonner"
+import { TooltipProvider } from "~/components/ui/tooltip"
 import { Button } from "~/components/ui/button"
 import type { Route } from "./+types/root"
 import "./app.css"
@@ -73,14 +74,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden px-4 py-4 sm:px-8 sm:py-6 lg:px-16 lg:py-8">
-      <div className="shrink-0">
-        <Navbar />
+    <TooltipProvider delay={200}>
+      <div className="flex h-dvh flex-col overflow-hidden px-4 py-4 sm:px-8 sm:py-6 lg:px-16 lg:py-8">
+        <div className="shrink-0">
+          <Navbar />
+        </div>
+        <div className="min-h-0 flex-1">
+          <Outlet />
+        </div>
       </div>
-      <div className="min-h-0 flex-1">
-        <Outlet />
-      </div>
-    </div>
+    </TooltipProvider>
   )
 }
 
