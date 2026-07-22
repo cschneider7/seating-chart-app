@@ -1,7 +1,12 @@
 import { Plus, Search } from "lucide-react"
+import { useMemo, useState } from "react"
 import { NavLink } from "react-router"
 import { StudentFormDialog } from "~/components/student-form-dialog"
-import { Label } from "~/components/ui/label"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "~/components/ui/input-group"
 import {
   Sidebar,
   SidebarContent,
@@ -11,34 +16,52 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarHeader,
-  SidebarInput,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "~/components/ui/sidebar"
 import type { Student } from "~/lib/schemas"
 
-function SearchForm() {
+function SearchForm({
+  query,
+  onQueryChange,
+}: {
+  query: string
+  onQueryChange: (value: string) => void
+}) {
   return (
-    <form>
-      <SidebarGroup className="py-0">
-        <SidebarGroupContent className="relative">
-          <Label htmlFor="search" className="sr-only">
-            Search
-          </Label>
-          <SidebarInput id="search" placeholder="Search..." className="pl-8" />
-          <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 opacity-50 select-none" />
-        </SidebarGroupContent>
-      </SidebarGroup>
-    </form>
+    <SidebarGroup className="py-0">
+      <SidebarGroupContent>
+        <InputGroup>
+          <InputGroupInput
+            aria-label="Search students"
+            placeholder="Search..."
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+          />
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+        </InputGroup>
+      </SidebarGroupContent>
+    </SidebarGroup>
   )
 }
 
 export function StudentSidebar({ students }: { students: Student[] }) {
+  const [query, setQuery] = useState("")
+  const filteredStudents = useMemo(
+    () =>
+      students.filter((student) =>
+        student.name.toLowerCase().includes(query.toLowerCase())
+      ),
+    [students, query]
+  )
+
   return (
     <Sidebar collapsible="none">
       <SidebarHeader>
-        <SearchForm />
+        <SearchForm query={query} onQueryChange={setQuery} />
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -51,19 +74,25 @@ export function StudentSidebar({ students }: { students: Student[] }) {
               </SidebarGroupAction>
             }
           />
-          <SidebarMenu>
-            {students.map((student) => (
-              <SidebarMenuItem key={student.id}>
-                <SidebarMenuButton
-                  render={
-                    <NavLink to={`/students/${student.id}`}>
-                      {student.name}
-                    </NavLink>
-                  }
-                />
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
+          {filteredStudents.length > 0 ? (
+            <SidebarMenu>
+              {filteredStudents.map((student) => (
+                <SidebarMenuItem key={student.id}>
+                  <SidebarMenuButton
+                    render={
+                      <NavLink to={`/students/${student.id}`}>
+                        {student.name}
+                      </NavLink>
+                    }
+                  />
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          ) : (
+            <p className="text-muted-foreground px-2 text-sm">
+              No students found.
+            </p>
+          )}
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter />
