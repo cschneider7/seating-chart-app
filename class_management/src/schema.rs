@@ -52,3 +52,11 @@ pub struct TableSchema {
     pub y_pos: i32,
     pub seat_assignments: Vec<Option<Uuid>>,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RandomizeSeatingChartSchema {
+    pub keep_existing_tables: bool,
+    pub new_table_rows: i16,
+    pub new_table_cols: i16,
+    pub existing_tables: Vec<crate::seating_chart::TableGeometry>,
+}

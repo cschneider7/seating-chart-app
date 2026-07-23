@@ -61,6 +61,10 @@ pub fn create_router(app_state: Arc<AppState>) -> Router {
             "/api/v1/classrooms/{classroom_id}/seating-chart",
             put(handlers::classroom::update_seating_chart_handler),
         )
+        .route(
+            "/api/v1/classrooms/{classroom_id}/seating-chart/randomize",
+            post(handlers::classroom::randomize_seating_chart_handler),
+        )
         .layer(from_fn(log_app_errors))
         .layer(TraceLayer::new_for_http().make_span_with(|req: &Request| {
             let method = req.method();
