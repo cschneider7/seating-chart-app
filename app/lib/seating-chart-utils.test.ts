@@ -3,11 +3,13 @@ import type { SeatingChart, Student } from "~/lib/schemas"
 import {
   buildInitialNodes,
   buildSeatingChartPayload,
+  computeRandomizeTableCount,
   createCanvasTable,
   DEFAULT_TABLE_COLS,
   DEFAULT_TABLE_ROWS,
   getSeatId,
   getSeatPosition,
+  getTableGeometry,
   getUnassignedStudents,
   reorderNodes,
   TABLE_OFFSET,
@@ -396,5 +398,66 @@ describe("getUnassignedStudents", () => {
       "s1",
       "s2",
     ])
+  })
+})
+
+describe("getTableGeometry", () => {
+  it("returns no entries when there are no nodes", () => {
+    expect(getTableGeometry([])).toEqual([])
+  })
+
+  it("extracts rows/cols/position for each table node, ignoring seat and student nodes", () => {
+    const nodes = buildInitialNodes(
+      "c1",
+      makeSeatingChart([
+        { rows: 2, cols: 3, x_pos: 40, y_pos: 60 },
+        { rows: 1, cols: 1, x_pos: 300, y_pos: 60, seat_assignments: [null] },
+      ]),
+      new Map()
+    )
+
+    expect(getTableGeometry(nodes)).toEqual([
+      { rows: 2, cols: 3, x_pos: 40, y_pos: 60 },
+      { rows: 1, cols: 1, x_pos: 300, y_pos: 60 },
+    ])
+  })
+})
+
+describe("computeRandomizeTableCount", () => {
+  it("needs no new tables when there are no students", () => {
+    expect(computeRandomizeTableCount(0, 2, 8, 2, 2)).toEqual({
+      neededNewTables: 0,
+      totalTables: 2,
+    })
+  })
+
+  it("needs no new tables when kept capacity already covers every student", () => {
+    expect(computeRandomizeTableCount(8, 2, 8, 2, 2)).toEqual({
+      neededNewTables: 0,
+      totalTables: 2,
+    })
+  })
+
+  it("computes an exact multiple of new tables when the deficit divides evenly", () => {
+    expect(computeRandomizeTableCount(8, 0, 0, 2, 2)).toEqual({
+      neededNewTables: 2,
+      totalTables: 2,
+    })
+  })
+
+  it("rounds a remainder deficit up rather than down", () => {
+    // 9 students, 0 kept capacity, 2x2 tables -> ceil(9/4) = 3, not 2.
+    expect(computeRandomizeTableCount(9, 0, 0, 2, 2)).toEqual({
+      neededNewTables: 3,
+      totalTables: 3,
+    })
+  })
+
+  it("folds keptTableCount into totalTables alongside the new tables", () => {
+    // 9 students, 4 kept capacity -> deficit 5, ceil(5/4) = 2 new tables.
+    expect(computeRandomizeTableCount(9, 1, 4, 2, 2)).toEqual({
+      neededNewTables: 2,
+      totalTables: 3,
+    })
   })
 })

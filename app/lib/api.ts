@@ -3,11 +3,13 @@ import {
   ClassroomSchema,
   CreateClassroomSchema,
   CreateStudentSchema,
+  RandomizeSeatingChartOptionsSchema,
   SeatingChartSchema,
   StudentSchema,
   UpdateClassroomSchema,
   UpdateStudentSchema,
   type Classroom,
+  type RandomizeSeatingChartOptions,
   type SeatingChart,
   type Student,
 } from "~/lib/schemas"
@@ -210,4 +212,31 @@ export async function updateClassroomSeatingChart(
       await getErrorMessage(response, "Error updating seating chart")
     )
   }
+}
+
+export async function generateRandomSeatingChart(
+  classroomId: string,
+  options: RandomizeSeatingChartOptions
+): Promise<SeatingChart> {
+  const response = await fetch(
+    `http://localhost:3000/api/v1/classrooms/${classroomId}/seating-chart/randomize`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(
+        z.parse(RandomizeSeatingChartOptionsSchema, options)
+      ),
+    }
+  )
+
+  if (!response.ok) {
+    throw new Error(
+      await getErrorMessage(response, "Error generating random seating chart")
+    )
+  }
+
+  const json = await response.json()
+  return z.parse(SeatingChartSchema, json.data)
 }

@@ -26,6 +26,10 @@ export default [
       route(":classroomId", "routes/classrooms/classroom.tsx"),
       route(":classroomId/edit", "routes/classrooms/edit-classroom.tsx"),
       route(":classroomId/delete", "routes/classrooms/delete-classroom.tsx"),
+      route(
+        ":classroomId/randomize-seating-chart",
+        "routes/classrooms/randomize-seating-chart.tsx"
+      ),
     ]),
   ]),
 ] satisfies RouteConfig

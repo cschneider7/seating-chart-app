@@ -72,3 +72,20 @@ export const SeatingChartSchema = z.object({
   ),
 })
 export type SeatingChart = z.infer<typeof SeatingChartSchema>
+
+export const RandomizeSeatingChartOptionsSchema = z.object({
+  keep_existing_tables: z.boolean(),
+  new_table_rows: z.int().positive().max(MAX_TABLE_DIMENSION),
+  new_table_cols: z.int().positive().max(MAX_TABLE_DIMENSION),
+  existing_tables: z.array(
+    z.object({
+      rows: z.int().positive().max(MAX_TABLE_DIMENSION),
+      cols: z.int().positive().max(MAX_TABLE_DIMENSION),
+      x_pos: z.int(),
+      y_pos: z.int(),
+    })
+  ),
+})
+export type RandomizeSeatingChartOptions = z.infer<
+  typeof RandomizeSeatingChartOptionsSchema
+>
