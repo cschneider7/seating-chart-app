@@ -1,6 +1,16 @@
 import { useNodesState } from "@xyflow/react"
-import { ArrowLeftIcon, Plus, UsersRoundIcon } from "lucide-react"
-import { useEffect, useMemo, useState } from "react"
+import {
+  ArrowLeftIcon,
+  Edit2Icon,
+  MoreHorizontalIcon,
+  ShuffleIcon,
+  TableIcon,
+  Trash2Icon,
+  UsersIcon,
+  UsersRoundIcon,
+  UserXIcon,
+} from "lucide-react"
+import React, { useEffect, useMemo, useState } from "react"
 import { Link, useFetcher } from "react-router"
 import {
   RosterPanel,
@@ -17,15 +27,40 @@ import {
   AlertDialogHeader,
   AlertDialogMedia,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "~/components/ui/alert-dialog"
 import { Button } from "~/components/ui/button"
-import { Spinner } from "~/components/ui/spinner"
+import { ButtonGroup } from "~/components/ui/button-group"
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip"
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu"
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from "~/components/ui/field"
+import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group"
+import { Spinner } from "~/components/ui/spinner"
+import { Switch } from "~/components/ui/switch"
 import {
   getClassroom,
   getClassroomSeatingChart,
@@ -43,27 +78,8 @@ import {
   reorderNodes,
   type SeatingChartSeatNode,
   type SeatingChartTableNode,
-} from "../../lib/seating-chart-utils"
+} from "~/lib/seating-chart-utils"
 import type { Route } from "./+types/classroom"
-
-/** Wraps a disabled toolbar button with a tooltip explaining why it's disabled while locked. */
-function LockedHint({
-  locked,
-  children,
-}: {
-  locked: boolean
-  children: React.ReactElement
-}) {
-  if (!locked) {
-    return children
-  }
-  return (
-    <Tooltip>
-      <TooltipTrigger render={<span />}>{children}</TooltipTrigger>
-      <TooltipContent>Click Edit to make changes.</TooltipContent>
-    </Tooltip>
-  )
-}
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -94,10 +110,103 @@ export async function action({ params, request }: Route.ActionArgs) {
   return { ok: true }
 }
 
+function RandomSeatingChartDialog({
+  ...props
+}: React.ComponentProps<typeof Dialog>) {
+  const isSubmitting = false
+
+  return (
+    <Dialog {...props}>
+      <form>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Random Seating Chart</DialogTitle>
+            <DialogDescription>
+              Generate a random seating chart based on the options below.
+            </DialogDescription>
+          </DialogHeader>
+          <FieldGroup>
+            <Field orientation="horizontal">
+              <Switch id="table-retain" disabled />
+              <FieldContent>
+                <FieldLabel className="font-normal">
+                  Keep Existing Tables
+                </FieldLabel>
+                <FieldDescription>
+                  Additional tables will automatically be created if necessary.
+                </FieldDescription>
+              </FieldContent>
+            </Field>
+            <FieldSet className="w-full max-w-xs">
+              <FieldLegend variant="label">New Table Size</FieldLegend>
+              <RadioGroup defaultValue="default">
+                <Field orientation="horizontal">
+                  <RadioGroupItem value="default" id="table-size-default" />
+                  <FieldLabel className="font-normal">Default</FieldLabel>
+                  <FieldDescription>Two rows & two columns</FieldDescription>
+                </Field>
+                <Field orientation="horizontal">
+                  <RadioGroupItem
+                    value="custom"
+                    id="table-size-custom"
+                    disabled
+                  />
+                  <FieldLabel className="font-normal">Custom</FieldLabel>
+                  <FieldDescription>TODO</FieldDescription>
+                </Field>
+              </RadioGroup>
+            </FieldSet>
+          </FieldGroup>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Spinner />}
+              Generate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </form>
+    </Dialog>
+  )
+}
+
+function UnassignAllDialog({
+  onUnassignAll,
+  ...props
+}: React.ComponentProps<typeof AlertDialog> & {
+  onUnassignAll: () => void
+}) {
+  return (
+    <AlertDialog {...props}>
+      <AlertDialogContent size="sm">
+        <AlertDialogHeader>
+          <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
+            <UsersRoundIcon />
+          </AlertDialogMedia>
+          <AlertDialogTitle>Unassign all students?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This clears every seat assignment on this chart. It isn't saved
+            until you click Save.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
+          <AlertDialogAction variant="destructive" onClick={onUnassignAll}>
+            Unassign All
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  )
+}
+
 export default function Component({ loaderData }: Route.ComponentProps) {
   const { classroom, students, seatingChart } = loaderData
 
   const [locked, setLocked] = useState(true)
+  const [randomChartOpen, setRandomChartOpen] = useState(false)
   const [unassignAllOpen, setUnassignAllOpen] = useState(false)
 
   const studentsById = useMemo(
@@ -197,67 +306,110 @@ export default function Component({ loaderData }: Route.ComponentProps) {
             <AlertDescription>{saveError}</AlertDescription>
           </Alert>
         )}
-        {locked ? (
-          <Button variant="secondary" onClick={() => setLocked(false)}>
-            Edit
-          </Button>
-        ) : (
-          <>
-            <Button
-              disabled={fetcher.state !== "idle"}
-              variant="secondary"
-              onClick={handleCancel}
-            >
-              Cancel
-            </Button>
-            <Button disabled={fetcher.state !== "idle"} onClick={handleSave}>
-              {fetcher.state !== "idle" && <Spinner />}
-              Save
-            </Button>
-          </>
-        )}
-        <LockedHint locked={locked}>
-          <Button
-            variant="secondary"
-            disabled={locked}
-            onClick={handleAddTable}
-          >
-            <Plus />
-            <span>Add table</span>
-          </Button>
-        </LockedHint>
-        <LockedHint locked={locked}>
-          <AlertDialog open={unassignAllOpen} onOpenChange={setUnassignAllOpen}>
-            <AlertDialogTrigger
-              render={
-                <Button disabled={locked} variant="destructive">
-                  Unassign All
-                </Button>
-              }
-            />
-            <AlertDialogContent size="sm">
-              <AlertDialogHeader>
-                <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-                  <UsersRoundIcon />
-                </AlertDialogMedia>
-                <AlertDialogTitle>Unassign all students?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This clears every seat assignment on this chart. It isn't
-                  saved until you click Save.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel variant="outline">Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  onClick={handleUnassignAll}
+        <ButtonGroup>
+          <ButtonGroup>
+            {locked ? (
+              <Button
+                variant="secondary"
+                onClick={() => setLocked(false)}
+                aria-label="Edit seating chart"
+              >
+                Edit Chart
+              </Button>
+            ) : (
+              <>
+                <Button
+                  disabled={fetcher.state !== "idle"}
+                  variant="secondary"
+                  onClick={handleCancel}
+                  aria-label="Cancel seating chart changes"
                 >
-                  Unassign All
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </LockedHint>
+                  Cancel
+                </Button>
+                <Button
+                  disabled={fetcher.state !== "idle"}
+                  onClick={handleSave}
+                  aria-label="Save seating chart"
+                >
+                  {fetcher.state !== "idle" && <Spinner />}
+                  Save
+                </Button>
+              </>
+            )}
+          </ButtonGroup>
+          <ButtonGroup>
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    variant="secondary"
+                    size="icon"
+                    aria-label="More Options"
+                  >
+                    <MoreHorizontalIcon />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="w-full">
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Classroom</DropdownMenuLabel>
+                  <DropdownMenuItem aria-label="Edit Classroom">
+                    <Edit2Icon /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem aria-label="Manage Students">
+                    <UsersIcon /> Manage Students
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Seating Chart</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    disabled={locked}
+                    onClick={handleAddTable}
+                    aria-label="Add Table"
+                  >
+                    <TableIcon /> Add Table
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    disabled={locked}
+                    onClick={() => setRandomChartOpen(true)}
+                    aria-label="Randomize Seating Chart"
+                  >
+                    <ShuffleIcon /> Randomize
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    disabled={locked}
+                    variant="destructive"
+                    aria-label="Unassign All Students"
+                    onClick={() => setUnassignAllOpen(true)}
+                  >
+                    <UserXIcon /> Unassign All
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    aria-label="Delete Classroom"
+                  >
+                    <Trash2Icon /> Delete Classroom
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ButtonGroup>
+        </ButtonGroup>
+      </div>
+      <div>
+        <RandomSeatingChartDialog
+          open={randomChartOpen}
+          onOpenChange={setRandomChartOpen}
+        />
+        <UnassignAllDialog
+          open={unassignAllOpen}
+          onOpenChange={setUnassignAllOpen}
+          onUnassignAll={handleUnassignAll}
+        />
       </div>
       <div className="flex min-h-0 w-full flex-1 flex-col gap-4 md:flex-row">
         <RosterPanel students={unassigned} locked={locked} />
