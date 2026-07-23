@@ -13,6 +13,7 @@ use serde::Serialize;
 pub enum AppError {
     NotFound(String),
     Internal(String),
+    BadRequest(String),
 }
 
 impl IntoResponse for AppError {
@@ -33,6 +34,7 @@ impl IntoResponse for AppError {
                 "Something went wrong".to_string(),
                 Some(self),
             ),
+            AppError::BadRequest(message) => (StatusCode::BAD_REQUEST, message.clone(), Some(self)),
         };
 
         let mut response = (status, Json(ErrorResponse { message })).into_response();

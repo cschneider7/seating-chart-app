@@ -254,3 +254,52 @@ export function getUnassignedStudents(
   )
   return students.filter((s) => !studentsOnCanvas.has(s.id))
 }
+
+export type TableGeometry = {
+  rows: number
+  cols: number
+  x_pos: number
+  y_pos: number
+}
+
+/**
+ * Extracts each table's current geometry from canvas nodes.
+ * @param nodes - List of seating chart nodes
+ * @returns One entry per table node, in node order
+ */
+export function getTableGeometry(nodes: SeatingChartNode[]): TableGeometry[] {
+  return nodes
+    .filter((n): n is SeatingChartTableNode => n.type === "table")
+    .map((table) => ({
+      rows: table.data.rows,
+      cols: table.data.cols,
+      x_pos: table.position.x,
+      y_pos: table.position.y,
+    }))
+}
+
+export const RANDOMIZE_TABLE_COUNT_WARNING_THRESHOLD = 20
+
+/**
+ * Computes how many new tables a randomize request would create.
+ * @param studentCount - Number of students to seat
+ * @param keptTableCount - Number of tables being kept
+ * @param keptCapacity - Total seats across kept tables
+ * @param newTableRows - Row count for each new table
+ * @param newTableCols - Column count for each new table
+ * @returns The number of new tables needed and the resulting total table count
+ */
+export function computeRandomizeTableCount(
+  studentCount: number,
+  keptTableCount: number,
+  keptCapacity: number,
+  newTableRows: number,
+  newTableCols: number
+): { neededNewTables: number; totalTables: number } {
+  const seatsPerNewTable = newTableRows * newTableCols
+  const neededNewTables =
+    seatsPerNewTable > 0
+      ? Math.ceil(Math.max(0, studentCount - keptCapacity) / seatsPerNewTable)
+      : 0
+  return { neededNewTables, totalTables: keptTableCount + neededNewTables }
+}

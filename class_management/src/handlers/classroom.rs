@@ -13,7 +13,11 @@ use crate::{
     AppState,
     error::AppError,
     model::ClassroomModel,
-    schema::{ClassroomSchema, SeatingChartSchema, TableSchema, UpdateClassroomSchema},
+    schema::{
+        ClassroomSchema, RandomizeSeatingChartSchema, SeatingChartSchema, TableSchema,
+        UpdateClassroomSchema,
+    },
+    seating_chart::{self, MAX_TABLE_DIMENSION},
 };
 
 pub async fn classroom_list_handler(
@@ -213,6 +217,52 @@ pub async fn update_seating_chart_handler(
     Ok((StatusCode::OK, Json(response)))
 }
 
+pub async fn randomize_seating_chart_handler(
+    Path(classroom_id): Path<Uuid>,
+    State(data): State<Arc<AppState>>,
+    Json(body): Json<RandomizeSeatingChartSchema>,
+) -> Result<impl IntoResponse, AppError> {
+    let dimensions_in_range = |rows: i16, cols: i16| {
+        (1..=MAX_TABLE_DIMENSION).contains(&rows) && (1..=MAX_TABLE_DIMENSION).contains(&cols)
+    };
+    let existing_dimensions_valid = body
+        .existing_tables
+        .iter()
+        .all(|t| dimensions_in_range(t.rows, t.cols));
+    if !dimensions_in_range(body.new_table_rows, body.new_table_cols) || !existing_dimensions_valid
+    {
+        return Err(AppError::BadRequest(format!(
+            "new_table_rows and new_table_cols must be between 1 and {}",
+            MAX_TABLE_DIMENSION
+        )));
+    }
+
+    sqlx::query_as!(
+        ClassroomModel,
+        r#"SELECT * FROM classrooms WHERE id = $1"#,
+        &classroom_id
+    )
+    .fetch_one(&data.db)
+    .await?;
+
+    let students = sqlx::query_scalar!(
+        r#"SELECT id FROM students WHERE classroom_id = $1"#,
+        &classroom_id
+    )
+    .fetch_all(&data.db)
+    .await?;
+
+    let tables = seating_chart::build_randomized_chart(
+        students,
+        body.keep_existing_tables,
+        body.existing_tables,
+        body.new_table_rows,
+        body.new_table_cols,
+    );
+
+    Ok((StatusCode::OK, Json(json!({"data": {"tables": tables}}))))
+}
+
 #[cfg(test)]
 mod tests {
     use axum::{
@@ -280,6 +330,25 @@ mod tests {
             table_id,
             student_id,
             seat_number
+        )
+        .fetch_one(pool)
+        .await
+        .unwrap()
+    }
+
+    async fn insert_student_in_classroom(
+        pool: &sqlx::PgPool,
+        classroom_id: Uuid,
+        student_id: i32,
+        name: &str,
+    ) -> Uuid {
+        sqlx::query_scalar!(
+            r#"INSERT INTO students (classroom_id, student_id, name)
+            VALUES ($1, $2, $3)
+            RETURNING id"#,
+            classroom_id,
+            student_id,
+            name
         )
         .fetch_one(pool)
         .await
@@ -654,6 +723,158 @@ mod tests {
 
         let json = body_json(response).await;
         assert!(json["data"]["tables"].as_array().unwrap().is_empty());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn randomize_seating_chart_rejects_out_of_range_new_table_dimensions(
+        pool: sqlx::PgPool,
+    ) -> sqlx::Result<()> {
+        let classroom = insert_classroom(&pool, "Math 2", 3).await;
+        let app = app(pool);
+
+        let body = json!({
+            "keep_existing_tables": false,
+            "new_table_rows": 0,
+            "new_table_cols": 16,
+            "existing_tables": []
+        });
+        let response = app
+            .oneshot(json_request(
+                "POST",
+                &format!(
+                    "/api/v1/classrooms/{}/seating-chart/randomize",
+                    classroom.id
+                ),
+                body,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+
+        let json = body_json(response).await;
+        assert!(json["message"].is_string());
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn randomize_seating_chart_nonexistent_classroom_returns_404(
+        pool: sqlx::PgPool,
+    ) -> sqlx::Result<()> {
+        let app = app(pool);
+
+        let body = json!({
+            "keep_existing_tables": false,
+            "new_table_rows": 2,
+            "new_table_cols": 2,
+            "existing_tables": []
+        });
+        let response = app
+            .oneshot(json_request(
+                "POST",
+                &format!(
+                    "/api/v1/classrooms/{}/seating-chart/randomize",
+                    Uuid::new_v4()
+                ),
+                body,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn randomize_seating_chart_only_seats_students_in_this_classroom(
+        pool: sqlx::PgPool,
+    ) -> sqlx::Result<()> {
+        let classroom = insert_classroom(&pool, "Math 2", 3).await;
+        let other_classroom = insert_classroom(&pool, "Science 1", 4).await;
+        let in_classroom = insert_student_in_classroom(&pool, classroom.id, 1, "Alice").await;
+        insert_student_in_classroom(&pool, other_classroom.id, 2, "Bob").await;
+        insert_student(&pool, 3, "Unassigned").await;
+        let app = app(pool);
+
+        let body = json!({
+            "keep_existing_tables": false,
+            "new_table_rows": 2,
+            "new_table_cols": 2,
+            "existing_tables": []
+        });
+        let response = app
+            .oneshot(json_request(
+                "POST",
+                &format!(
+                    "/api/v1/classrooms/{}/seating-chart/randomize",
+                    classroom.id
+                ),
+                body,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let json = body_json(response).await;
+        let tables = json["data"]["tables"].as_array().unwrap();
+        let assigned: Vec<&serde_json::Value> = tables
+            .iter()
+            .flat_map(|t| t["seat_assignments"].as_array().unwrap())
+            .filter(|s| !s.is_null())
+            .collect();
+        assert_eq!(assigned.len(), 1);
+        assert_eq!(assigned[0], &json!(in_classroom.to_string()));
+
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../migrations")]
+    async fn randomize_seating_chart_never_persists_anything(
+        pool: sqlx::PgPool,
+    ) -> sqlx::Result<()> {
+        let classroom = insert_classroom(&pool, "Math 2", 3).await;
+        let table = insert_table(&pool, classroom.id, 0, 2, 2, 40, 40).await;
+        let student_id = insert_student_in_classroom(&pool, classroom.id, 1, "Alice").await;
+        insert_seat(&pool, table.id, Some(student_id), 0).await;
+        let app = app(pool.clone());
+
+        let body = json!({
+            "keep_existing_tables": true,
+            "new_table_rows": 2,
+            "new_table_cols": 2,
+            "existing_tables": [
+                { "rows": 2, "cols": 2, "x_pos": 40, "y_pos": 40 }
+            ]
+        });
+        let response = app
+            .oneshot(json_request(
+                "POST",
+                &format!(
+                    "/api/v1/classrooms/{}/seating-chart/randomize",
+                    classroom.id
+                ),
+                body,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let tables_after = fetch_tables_for_classroom(&pool, classroom.id).await;
+        assert_eq!(tables_after.len(), 1);
+        assert_eq!(tables_after[0].id, table.id);
+
+        let seats_after = sqlx::query_as!(
+            SeatModel,
+            r#"SELECT * FROM seats WHERE table_id = $1"#,
+            table.id
+        )
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+        assert_eq!(seats_after.len(), 1);
+        assert_eq!(seats_after[0].student_id, Some(student_id));
 
         Ok(())
     }

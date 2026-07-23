@@ -11,6 +11,7 @@ mod handlers;
 mod model;
 mod routes;
 mod schema;
+mod seating_chart;
 #[cfg(test)]
 mod test_support;
 
