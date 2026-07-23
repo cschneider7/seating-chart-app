@@ -60,16 +60,26 @@ export function ClassroomFormDialog(props: ClassroomFormDialogProps) {
   const schema =
     mode === "create" ? CreateClassroomSchema : UpdateClassroomSchema
 
+  const defaultValues =
+    mode === "create"
+      ? { subject: "" }
+      : { subject: props.classroom.subject, period: props.classroom.period }
+
   const form = useForm<z.infer<typeof schema>>({
     resolver: zodResolver(schema),
-    defaultValues:
-      mode === "create"
-        ? { subject: "" }
-        : { subject: props.classroom.subject, period: props.classroom.period },
+    defaultValues,
   })
 
   // formState is a proxy; dirtyFields must be read here, not inside onSubmit.
   const { dirtyFields } = form.formState
+
+  // The dialog stays mounted (see loop rendering it), so the form must be
+  // reset on each open or stale/dirty values from the last session persist.
+  useEffect(() => {
+    if (open) {
+      form.reset(defaultValues)
+    }
+  }, [open])
 
   const onSubmit = (data: z.infer<typeof schema>) => {
     const submitData =
